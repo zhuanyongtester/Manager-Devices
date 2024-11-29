@@ -1,0 +1,72 @@
+<style>
+.text-danger {
+    color: red;
+}
+
+.text-success {
+    color: green;
+}
+
+#viewDevicesInfoForm {
+    max-width: 800px; /* Increase the form width */
+    margin: auto;
+}
+
+#viewStockTable {
+    width: 100%; /* Set to 100% to fill the parent */
+    table-layout: auto; /* Allow automatic column width adjustments */
+    word-wrap: break-word; /* Enable word wrapping */
+}
+
+#viewStockTable th, #viewStockTable td {
+    padding: 8px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+#viewStockTable th {
+    background-color: #f2f2f2; /* Light gray background for headers */
+}
+
+#viewStockTable td {
+    border: 1px solid #dee2e6; /* Optional: Add a border to table cells */
+}
+
+#viewStockTable th:nth-child(1), #viewStockTable td:nth-child(1) {
+    width: 5%; /* Narrow width for the index */
+}
+
+#viewStockTable th:nth-child(2), #viewStockTable td:nth-child(2),
+#viewStockTable th:nth-child(3), #viewStockTable td:nth-child(3) {
+    width: 20%; /* Set these columns wider for names and departments */
+}
+
+#viewStockTable th:nth-child(4), #viewStockTable td:nth-child(4),
+#viewStockTable th:nth-child(5), #viewStockTable td:nth-child(5) {
+    width: 15%; /* Set these columns for borrow time and days */
+}
+
+#viewStockTable th:nth-child(6), #viewStockTable td:nth-child(6) {
+    width: 15%; /* Set width for return time */
+}
+
+#viewStockTable th:nth-child(7), #viewStockTable td:nth-child(7),
+#viewStockTable th:nth-child(8), #viewStockTable td:nth-child(8) {
+    width: 10%; /* Set these columns for overdue status and days */
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-control {
+    width: 80%;
+}
+
+.text-center button {
+    width: 140px;
+    margin: 0 5px;
+}
+
+
+</style>

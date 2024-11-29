@@ -1,0 +1,28 @@
+  <style>
+    .card {
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .list-group-item {
+      background-color: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 0.25rem;
+      transition: background-color 0.3s;
+    }
+
+    .list-group-item:hover {
+      background-color: #e2e6ea;
+    }
+
+    .text-success {
+      color: #28a745;
+    }
+
+    .text-info {
+      color: #17a2b8;
+    }
+
+    .text-muted {
+      color: #6c757d;
+    }
+  </style>

@@ -1,0 +1,154 @@
+{% load static %}
+<html lang="en">
+<head>
+    {% include 'baseside/header.html' %}
+    <link rel="stylesheet" href="{% static 'css/baseapp/view_table_devices_style.css' %}">
+</head>
+<body class="hold-transition sidebar-mini">
+<div class="wrapper">
+    {% include 'baseside/home_page.html' %}
+    {% include 'baseside/left_nev.html' %}
+
+    <div class="content-wrapper">
+        <section class="content-header">
+            <div class="container-fluid">
+                <div class="row mb-2">
+                    <div class="col-sm-6">
+                        <h1>批量归还机器</h1>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="content">
+            <div class="card">
+                <div class="card-header">
+                    <!-- 借机人名称和部门部分 -->
+                    <div class="form-group">
+                        <h1 id="deviceImei" name="device_imei" class="package-name text-center" data-imei-sn="{{ view_imei_sn }}">
+                            借机人名称: {{ borrow_name }}-{{ borrow_job_number }}
+                        </h1>
+                        <h1 id="deviceStatus" name="device_status" class="package-name text-center" data-status="{{ view_status }}">
+                            借机人部门: {{ borrow_department }}
+                        </h1>
+                    </div>
+
+<!--                     搜索输入框和按钮部分-->
+                    <div class="form-group row mt-3">
+                        <label for="imeiSearch" class="col-sm-2 col-form-label">搜索 IMEI/SN:</label>
+                        <div class="col-sm-8">
+                            <input type="text" id="imeiSearch" class="form-control" placeholder="请输入 IMEI/SN 查询">
+                        </div>
+                        <div class="col-sm-2">
+                            <button type="button" class="btn btn-primary" onclick="searchDeviceByIMEI()">搜索</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 表格1：所有设备列表 -->
+            <div class="card-body">
+                <table id="deviceListTable" class="table table-bordered table-striped">
+                    <thead>
+                        <tr>
+                            <th>No.</th>
+                            <th>设备名称</th>
+                            <th>设备颜色</th>
+                            <th>IMEI/SN</th>
+                            <th>借机时间</th>
+                            <th>借机天数</th>
+                            <th>还机时间</th>
+                            <th>是否超期</th>
+                            <th>添加设备</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for device_info in devices %}
+                        <tr id="deviceRow{{ device_info.device.imei_sn }}">
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ device_info.device.model_name }}</td> <!-- 设备名称 -->
+                            <td>{{ device_info.device.color }}</td> <!-- 设备颜色 -->
+                            <td>{{ device_info.device.imei_sn }}</td> <!-- IMEI/SN -->
+                            <td>{{ device_info.borrow_time|date:"Y-m-d H:i" }}</td> <!-- 借机时间 -->
+                            <td>{{ device_info.borrow_days }}</td> <!-- 借机天数 -->
+                            <td>{{ device_info.back_time|date:"Y-m-d H:i" }}</td> <!-- 还机时间 -->
+                            <td class="{% if device_info.is_overdue %}text-danger{% else %}text-success{% endif %}">
+                                {{ device_info.borrow_status_back }}
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-success" onclick="addDevice('{{ device_info.device.imei_sn }}', '{{ device_info.device.model_name }}', '{{ device_info.device.color }}', '{{ device_info.borrow_time|date:"Y-m-d H:i" }}', '{{ device_info.borrow_days }}', '{{ device_info.back_time|date:"Y-m-d H:i" }}', '{{ device_info.borrow_status_back }}')">+</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <form id="viewDevicesInfoForm" action="{% url 'DevicesManager:back_Devices' %}" method="POST">
+                <!-- 表格2：已选中的设备列表 -->
+                <div class="card-body">
+                    <h4>已选设备列表</h4>
+                    <table id="selectedDeviceTable" class="table table-bordered table-striped">
+                        <thead>
+                            <tr>
+                                <th>No.</th>
+                                <th>设备名称</th>
+                                <th>设备颜色</th>
+                                <th>IMEI/SN</th>
+                                <th>借机时间</th>
+                                <th>借机天数</th>
+                                <th>还机时间</th>
+                                <th>是否超期</th>
+                                <th>移除设备</th>
+                            </tr>
+                        </thead>
+                        <tbody id="selectedDeviceTableBody">
+                            <!-- 动态添加已选择设备行 -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 表单的其他内容 -->
+                <div class="form-group">
+                    <label for="sign_name"><span style="color: red;">*</span> 确定借机人工号：</label>
+                    <input type="text" class="form-control" id="sign_name" placeholder="{{ sign_name }}" name="sign_name" value="{{ sign_name }}">
+                </div>
+
+                <!-- 提交按钮 -->
+                <div class="text-center">
+                    <button type="button" class="btn btn-outline-success ml-3" id="submitDevicesView" onclick="devices_view_submit(event)">Return Device</button>
+                    <button type="button" class="btn btn-outline-success ml-3" id="cancelDevicesView" onclick="devices_view_cancel(event)">Cancel</button>
+                </div>
+            </form>
+        </section>
+    </div>
+</div>
+
+<!-- jQuery -->
+<script src="{% static 'adminlte/plugins/jquery/jquery.min.js' %}"></script>
+<!-- Bootstrap 4 -->
+<script src="{% static 'adminlte/plugins/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<!-- DataTables & Plugins -->
+<script src="{% static 'adminlte/plugins/datatables/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-responsive/js/dataTables.responsive.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-responsive/js/responsive.bootstrap4.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/dataTables.buttons.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/buttons.bootstrap4.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/jszip/jszip.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/pdfmake/pdfmake.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/pdfmake/vfs_fonts.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/buttons.html5.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/buttons.print.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/buttons.colVis.min.js' %}"></script>
+<!-- AdminLTE App -->
+<script src="{% static 'adminlte/dist/js/adminlte.min.js' %}"></script>
+<!-- AdminLTE for demo purposes -->
+<script src="{% static 'adminlte/dist/js/demo.js' %}"></script>
+<script src="{% static 'js/baseapp/reback_all_devices.js' %}"></script>
+<script>
+
+</script>
+
+</body>
+</html>

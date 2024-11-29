@@ -1,0 +1,27 @@
+{% load static %}
+
+<section class="content">
+  {% csrf_token %}
+  <div class="card" id="app_manage" style="border: 2px solid #007bff;">
+    <div class="card-header bg-primary text-white">
+      <h3 class="card-title">管理信息</h3>
+    </div>
+    <div class="card-body">
+      <p class="text-success">欢迎 {{ work_name }} 管理员</p>
+      <ul class="list-group">
+        <li class="list-group-item">工号: <strong>{{ admin_job }}</strong></li>
+        <li class="list-group-item">备注: <strong>{{ admin_love }}</strong></li>
+      </ul>
+    </div>
+    <div class="card-footer d-flex justify-content-between align-items-center bg-light">
+      <div>
+        <strong>当前登录管理员: </strong> <span class="text-info">{{ work_name }}</span><br>
+        <small>上次登录时间: <span class="text-muted">{{ admin_time }}</span></small>
+      </div>
+      <form method="post" id="submitLogOutForm" action="{% url 'UserLogin:logout' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger" onclick="logout(event)">登出</button>
+      </form>
+    </div>
+  </div>
+</section>

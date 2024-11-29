@@ -1,0 +1,53 @@
+{% load static %}
+<html lang="en">
+<head>
+    {% include 'baseside/header.html' %}
+    <!-- Include DataTables CSS -->
+    <link rel="stylesheet" href="{% static 'adminlte/plugins/datatables/jquery.dataTables.min.css' %}">
+</head>
+<body class="hold-transition sidebar-mini">
+<div class="wrapper">
+    <!-- Navbar -->
+    {% include 'baseside/home_page.html' %}
+    <!-- Main Sidebar Container -->
+    {% include 'baseside/left_nev.html' %}
+    <div class="content-wrapper">
+        <!-- Content Header (Page header) -->
+        <section class="content-header">
+            <div class="container-fluid">
+                <div class="row mb-2">
+                    <div class="col-sm-6">
+                        <h1>Devices Info</h1>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="content">
+            {% csrf_token %}
+            <div class="card" id="app_manage">
+                {% include 'baseside/card_header.html' %}
+                {% include 'baseside/table_page.html' %}
+                {% include 'baseside/pop_view_imei.html' %}
+            </div>
+
+            {% include 'baseside/pop_loading.html' %}
+        </section>
+
+        {% include 'baseside/bottom_page.html' %}
+        <aside class="control-sidebar control-sidebar-dark"></aside>
+    </div>
+</div>
+
+<!-- jQuery -->
+<script src="{% static 'adminlte/plugins/jquery/jquery.min.js' %}"></script>
+<!-- Bootstrap 4 -->
+<script src="{% static 'adminlte/plugins/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<!-- DataTables JS -->
+<script src="{% static 'adminlte/plugins/datatables/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js' %}"></script>
+
+<script src="{% static 'js/baseapp/devices_manger.js' %}"></script>
+
+</body>
+</html>

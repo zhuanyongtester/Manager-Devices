@@ -1,0 +1,179 @@
+{% load static %}
+<html lang="en">
+<head>
+{% include 'baseside/header.html' %}
+    <link rel="stylesheet" href="{% static 'css/baseapp/view_table_devices_style.css' %}">
+
+</head>
+<body class="hold-transition sidebar-mini">
+<div class="wrapper">
+  <!-- Navbar -->
+  {% include 'baseside/home_page.html' %}
+  <!-- /.navbar -->
+
+  <!-- Main Sidebar Container -->
+
+  {% include 'baseside/left_nev.html' %}
+  <!-- Content Wrapper. Contains page content -->
+  <div class="content-wrapper">
+    <!-- Content Header (Page header) -->
+    <section class="content-header">
+      <div class="container-fluid">
+        <div class="row mb-2">
+          <div class="col-sm-6">
+            <h1>查看机器状态</h1>
+          </div>
+
+        </div>
+      </div><!-- /.container-fluid -->
+    </section>
+    <section class="content">
+      {% csrf_token %}
+      <!-- Default box -->
+      <div class="card" id="app_manage">
+    <div class="card-header" id="app_manage_tool">
+        <div class="d-flex justify-content-center align-items-center">
+            <div class="form-container">
+                 <!-- 显示消息 -->
+                    {% if messages %}
+                        <div class="container">
+                            {% for message in messages %}
+                                <div class="alert alert-{{ message.tags }}">
+                                   <span style="color: red;"> {{ message }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                <!-- 表单开始 -->
+
+         <form method="post" id="viewDevicesInfoForm"  action="{% url 'DevicesManager:back_Devices' %}" class="vertical-form" onsubmit="devices_view_submit(event)">
+                 {% csrf_token %}
+
+                    <div class="form-group">
+                       <h1 id="deviceImei" name="device_imei" class="package-name text-center" data-imei-sn="{{ view_imei_sn }}">
+                              IMEI/SN: {{ view_imei_sn }}
+                       </h1>
+                        <h1 id="deviceStatus" name="device_status" class="package-name text-center" data-status="{{ view_status }}">
+                              设备状态: {{ view_status }}
+                        </h1>
+                    </div>
+			     <table id="viewStockTable" class="table table-bordered table-striped" style="width: 100%;">
+                <thead>
+                <tr>
+
+                  <th >No.</th>
+                    <th >借机人工号</th>
+                  <th >借机人名称</th>
+                  <th >借机人部门</th>
+                  <th >借机时间</th>
+                   <th >借机天数</th>
+                  <th >还机时间</th>
+                  <th >是否超期</th>
+                   <th>超期天数</th>
+                </tr>
+                </thead>
+                   {% for device in devices%}
+                <tbody>
+
+                <tr>
+
+                    <td>
+                        {{device.num}}
+                    </td>
+                     <td>
+                      <li class="list-inline-item">
+                      {{device.borrow_job_number}}
+                      </li>
+                  </td>
+                   <td>
+                      <li class="list-inline-item">
+                      {{device.borrow_name}}
+                      </li>
+                  </td>
+                  <td>    <li class="list-inline-item">
+                      {{device.borrow_department}}
+                     </li>
+                  </td>
+
+                   <td> {{device.borrow_time}}</td>
+                    <td> {{device.borrow_days}}</td>
+                    <td>
+                        {{device.back_time}}
+                    </td>
+                    <td class="{% if device.overdue_days > 0 %}text-danger{% else %}text-success{% endif %}">
+                        {{device.borrow_status_back}}
+                    </td>
+                      <td class="{% if device.overdue_days > 0 %}text-danger{% else %}text-success{% endif %}">
+                          {{device.overdue_days}}
+                      </td>
+                </tr>
+
+                </tbody>
+                     {% endfor %}
+              </table>
+
+
+
+                      <div class="form-group">
+                        <label for="sign_name"><span style="color: red;">*</span> 确定借机人工号：</label>
+                        <input type="text" class="form-control" id="sign_name" placeholder="{{ sign_name }}" name="sign_name" value="{{ sign_name }}">
+                    </div>
+                    <!-- 提交按钮 -->
+                    <div class="text-center">
+                         <button type="submit" class="btn btn-outline-success ml-3" id="submitDevicesView">Return Device</button>
+                        <button type="submit" class="btn btn-outline-success ml-3" id="cancelDevicesView" onclick="devices_view_cancel(event)">Cancel</button>
+                    </div>
+		      </form>
+
+                <!-- 进度条 -->
+                <div class="progress mt-3" style="display: none;">
+                    <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+  {% include 'baseside/pop_loading.html' %}
+  <!-- /.content-wrapper -->
+  {% include 'baseside/bottom_page.html' %}
+  <!-- Control Sidebar -->
+       <aside class="control-sidebar control-sidebar-dark">
+    <!-- Control sidebar content goes here -->
+  </aside>
+  <!-- /.control-sidebar -->
+    </section>
+  </div>
+<!-- ./wrapper -->
+</div>
+<!-- jQuery -->
+<script src="{% static 'adminlte/plugins/jquery/jquery.min.js' %}"></script>
+<!-- Bootstrap 4 -->
+<script src="{% static 'adminlte/plugins/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<!-- DataTables  & Plugins -->
+<script src="{% static 'adminlte/plugins/datatables/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-responsive/js/dataTables.responsive.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-responsive/js/responsive.bootstrap4.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/dataTables.buttons.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/buttons.bootstrap4.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/jszip/jszip.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/pdfmake/pdfmake.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/pdfmake/vfs_fonts.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/buttons.html5.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/buttons.print.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/buttons.colVis.min.js' %}"></script>
+<!-- AdminLTE App -->
+<script src="{% static 'adminlte/dist/js/adminlte.min.js' %}"></script>
+<!-- AdminLTE for demo purposes -->
+<script src="{% static 'adminlte/dist/js/demo.js' %}"></script>
+
+
+<script src="{% static 'js/baseapp/device_info_view.js' %}"></script>
+<!-- Page specific script -->
+<script>
+
+</script>
+
+</body>
+</html>

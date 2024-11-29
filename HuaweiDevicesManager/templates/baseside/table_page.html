@@ -1,0 +1,42 @@
+<section class="content">
+    <div class="card">
+        <div class="card-body">
+            <table id="example1" class="table table-bordered table-striped">
+                <thead>
+                    <tr>
+                        <th style="width: 1%">
+                            <input type="checkbox" class="i-checks" id="allChecks" onclick="ckAll()">
+                        </th>
+                        <th style="width:1%">No.</th>
+                        <th style="width:10%">设备名称</th>
+                        <th style="width:10%">颜色</th>
+                        <th style="width:10%">状态</th>
+                        <th style="width:5%">负责人</th>
+                        <th style="width:5%">借次数</th>
+                        <th style="width:25%">IMEI/SN</th>
+                        <th style="width:5%">查看</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for device in devices %}
+                    <tr>
+                        <td>
+                            <input type="checkbox" class="i-checks" value="{{ device.imei_sn }}" name="device_ids">
+                        </td>
+                        <td>{{ device.num }}</td>
+                        <td><li class="list-inline-item">{{ device.device_name }}</li></td>
+                        <td><li class="list-inline-item">{{ device.device_color }}</li></td>
+                        <td>{{ device.status }}</td>
+                        <td>{{ device.person }}</td>
+                        <td>{{ device.times }}</td>
+                        <td>{{ device.imei_sn }}</td>
+                        <td>
+                            <a href="javascript:void(0);" class="btn btn-primary" onclick="checkDeviceInfoModal('{{ device.imei_sn }}')">view</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>

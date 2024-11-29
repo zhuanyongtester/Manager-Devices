@@ -1,0 +1,49 @@
+{% load static %}
+
+      <div class="card-header" id="app_manage_tool">
+          <div class="d-flex justify-content-between align-items-center">
+            <form id="devicesQueryForm" method="post" action="/auth/">
+                <input type="text" class="textbox" id="emui_sn" placeholder="emui/sn" name="emui_sn"
+                       style="width:200px">
+                <input type="text" class="textbox ml-2" id="borrow_name" placeholder="borrow name" name="borrow_name"
+                       style="width:110px"/>
+                    <select name="device_status" id="device_status" class="textbox ml-2" style="width: 110px;">
+                        <option value="">Search Status</option>
+                        <option value="0">In Stock</option>          <!-- In Stock -->
+                        <option value="1">Returned</option>        <!-- Returned -->
+                        <option value="2">Borrowed</option>        <!-- Borrowed -->
+                        <option value="3">Out of Stock</option>          <!-- Out of Stock -->
+                    </select>
+                  {% csrf_token %}
+               <button type="submit" class="btn btn-outline-primary rounded ml-2" iconCls="icon-search" onclick="app_manage_tool.search();">查询</button>
+            </form>
+
+            <div class="card-tools">
+                <button type="submit" class="btn btn-outline-success ml-3" id="borrow_devices" onclick="borrow_devices()">借机</button>
+                <button type="submit" class="btn btn-outline-success ml-3" id="borrow_all_devices" onclick="borrow_all_devices()">批量借机</button>
+
+               <button type="button" class="btn btn-outline-success ml-3" id="back_devices" onclick="showUserInfoModal()">批量归还</button>
+
+               <a type="submit" class="btn btn-outline-success ml-3" href='/auth/download_excel/' id="devices_excel" >下载Excel</a>
+
+               <a type="submit" class="btn btn-outline-success ml-3" href='/auth/download_template/' id="devices_template" >下载template</a>
+
+                <button type="submit" class="btn btn-outline-success ml-3" id="addNewDevices"  onclick="add_new_devices()">入库</button>
+                <button type="submit" class="btn btn-outline-success ml-3" id="out_old_devices" onclick="out_old_devices()">出库</button>
+                <div class="progress mt-3" style="display: none;">
+                 <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+             </div>
+            </div>
+          </div>
+        </div>
+
+       <!-- 关闭开关 -->
+
+
+      <form method="post" action="{% url 'DevicesManager:download_template' %}" enctype="multipart/form-data" id="excelDevicesAddForm">
+                 {% csrf_token %}
+              <input type="file" class="textbox ml-3" id="excel_devices_file" name="excel_devices_file" style="width:300px" accept=".xlsx, .xls">
+              <button type="submit" id="exceluploadButton" class="btn btn-outline-primary rounded ml-2">Upload Excel</button>
+    </form>
+</div>
+

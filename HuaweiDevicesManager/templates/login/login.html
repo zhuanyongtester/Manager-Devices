@@ -1,0 +1,76 @@
+{% load static %}
+<html lang="en">
+<head>
+{% include 'baseside/header.html' %}
+     <link rel="stylesheet" href="{% static 'css/baseapp/login_manager.css' %}">
+</head>
+<body class="hold-transition sidebar-mini">
+<div class="wrapper">
+  <!-- Navbar -->
+  {% include 'baseside/home_page.html' %}
+  <!-- /.navbar -->
+
+  <!-- Main Sidebar Container -->
+
+  {% include 'baseside/left_nev.html' %}
+  <!-- Content Wrapper. Contains page content -->
+  <div class="content-wrapper">
+    <!-- Content Header (Page header) -->
+
+    <section class="content">
+      {% csrf_token %}
+      <!-- Default box -->
+      <div class="card" id="app_manage">
+
+
+           <!-- Main content -->
+               {% include 'login/login_base/login_manager.html' %}
+            <!-- /.content -->
+        </div>
+
+
+          {% include 'baseside/bottom_page.html' %}
+         <!-- Control Sidebar -->
+       <aside class="control-sidebar control-sidebar-dark">
+    <!-- Control sidebar content goes here -->
+  </aside>
+  <!-- /.control-sidebar -->
+    </section>
+  </div>
+<!-- ./wrapper -->
+</div>
+<!-- jQuery -->
+<script src="{% static 'adminlte/plugins/jquery/jquery.min.js' %}"></script>
+<!-- Bootstrap 4 -->
+<script src="{% static 'adminlte/plugins/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<!-- DataTables  & Plugins -->
+<script src="{% static 'adminlte/plugins/datatables/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-responsive/js/dataTables.responsive.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-responsive/js/responsive.bootstrap4.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/dataTables.buttons.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/buttons.bootstrap4.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/jszip/jszip.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/pdfmake/pdfmake.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/pdfmake/vfs_fonts.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/buttons.html5.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/buttons.print.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/buttons.colVis.min.js' %}"></script>
+<!-- AdminLTE App -->
+<script src="{% static 'adminlte/dist/js/adminlte.min.js' %}"></script>
+<!-- jQuery (必要的依赖) -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha384-KyZXEAg3QhqLMpG8r+Knujsl5/5hb7Q5Xl5Xle5er/Es3e3gLUWosDU2F3LXyB2a2" crossorigin="anonymous"></script>
+
+<!-- Bootstrap Bundle with Popper -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js" integrity="sha384-kQtW33rZJAHjge9c4MCIn1gp7LP3sU7GxZ5fX7qXv4DO3ZhO8GVBOfQ8Yldq6Yl" crossorigin="anonymous"></script>
+
+<!-- AdminLTE for demo purposes -->
+<script src="{% static 'adminlte/dist/js/demo.js' %}"></script>
+<script src="{% static 'js/login/login.js' %}"></script>
+<!-- Page specific script -->
+<script>
+
+</script>
+
+</body>
+</html>

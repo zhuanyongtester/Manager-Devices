@@ -1,0 +1,140 @@
+{% load static %}
+<html lang="en">
+<head>
+{% include 'baseside/header.html' %}
+</head>
+<body class="hold-transition sidebar-mini">
+<div class="wrapper">
+  <!-- Navbar -->
+  {% include 'baseside/home_page.html' %}
+  <!-- /.navbar -->
+
+  <!-- Main Sidebar Container -->
+ 
+  {% include 'baseside/left_nev.html' %}
+  <!-- Content Wrapper. Contains page content -->
+  <div class="content-wrapper">
+    <!-- Content Header (Page header) -->
+    <section class="content-header">
+      <div class="container-fluid">
+        <div class="row mb-2">
+          <div class="col-sm-6">
+            <h1>Add new Device</h1>
+          </div>
+      
+        </div>
+      </div><!-- /.container-fluid -->
+    </section>
+    <section class="content">
+      {% csrf_token %}
+      <!-- Default box -->
+      <div class="card" id="app_manage">
+    <div class="card-header" id="app_manage_tool">
+        <div class="d-flex justify-content-center align-items-center">
+            <div class="form-container">
+                 <!-- 显示消息 -->
+                    {% if messages %}
+                        <div class="container">
+                            {% for message in messages %}
+                                <div class="alert alert-{{ message.tags }}">
+                                   <span style="color: red;"> {{ message }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                <!-- 表单开始 -->
+
+                <form method="post" id="submitDevicesInfoForm"  action="{% url 'DevicesManager:submit_Form' %}" class="vertical-form">
+                    {% csrf_token %}
+                    <h1 class="package-name text-center">入库人: {{ stockName }}</h1>
+
+                    <!-- IMEI/SN -->
+                    <div class="form-group">
+                        <label for="imei"><span style="color: red;">*</span> IMEI/SN:</label>
+                        <input type="text" class="form-control" id="imei" placeholder="{{ imei }}" name="imei" value="{{ imei }}">
+                    </div>
+
+                    <!-- model_name -->
+                    <div class="form-group">
+                        <label for="model_name"><span style="color: red;">*</span> Model Name :</label>
+                        <input type="text" class="form-control" id="model_name" placeholder="{{ model_name }}" name="model_name" value="{{ model_name }}">
+                    </div>
+
+                    <!-- model_number -->
+                    <div class="form-group">
+                        <label for="model_number"><span style="color: red;">*</span> Model Number:</label>
+                        <input type="text" class="form-control" id="model_number" placeholder="{{ model_number }}" name="model_number" value="{{ model_number }}">
+                    </div>
+
+                    <!-- color -->
+                    <div class="form-group">
+                        <label for="color"><span style="color: red;">*</span> Color :</label>
+                        <input type="text" class="form-control" id="color" placeholder="{{ color }}" name="color" value="{{ color }}">
+                    </div>
+
+                    <!-- 其他信息 -->
+                    <div class="form-group">
+                        <label for="description">description:</label>
+                        <input type="text" class="form-control" id="description" placeholder="{{ description }}" name="description" value="{{ description }}">
+                    </div>
+
+
+                    <!-- 提交按钮 -->
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-outline-success ml-3" id="submitDevices" onclick="devices_submit(event)">Submit</button>
+                        <button type="submit" class="btn btn-outline-success ml-3" id="cancelDevices" onclick="devices_cancel(event)">Cancel</button>
+                    </div>
+                </form>
+
+                <!-- 进度条 -->
+                <div class="progress mt-3" style="display: none;">
+                    <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+  {% include 'baseside/pop_loading.html' %}
+  <!-- /.content-wrapper -->
+  {% include 'baseside/bottom_page.html' %}
+  <!-- Control Sidebar -->
+       <aside class="control-sidebar control-sidebar-dark">
+    <!-- Control sidebar content goes here -->
+  </aside>
+  <!-- /.control-sidebar -->
+    </section>
+  </div>
+<!-- ./wrapper -->
+</div>
+<!-- jQuery -->
+<script src="{% static 'adminlte/plugins/jquery/jquery.min.js' %}"></script>
+<!-- Bootstrap 4 -->
+<script src="{% static 'adminlte/plugins/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<!-- DataTables  & Plugins -->
+<script src="{% static 'adminlte/plugins/datatables/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-responsive/js/dataTables.responsive.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-responsive/js/responsive.bootstrap4.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/dataTables.buttons.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/buttons.bootstrap4.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/jszip/jszip.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/pdfmake/pdfmake.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/pdfmake/vfs_fonts.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/buttons.html5.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/buttons.print.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/buttons.colVis.min.js' %}"></script>
+<!-- AdminLTE App -->
+<script src="{% static 'adminlte/dist/js/adminlte.min.js' %}"></script>
+<!-- AdminLTE for demo purposes -->
+<script src="{% static 'adminlte/dist/js/demo.js' %}"></script>
+
+
+<script src="{% static 'js/baseapp/add_newdevices_from.js' %}"></script>
+<!-- Page specific script -->
+<script>
+ 
+</script>
+
+</body>
+</html>

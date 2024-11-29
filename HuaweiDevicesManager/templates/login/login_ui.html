@@ -1,0 +1,80 @@
+{% load static %}
+
+<html lang="zh-CN"> <!--begin::Head-->
+
+<head>
+    {% include 'baseside/header.html' %}
+</head> <!--end::Head--> <!--begin::Body-->
+
+<body class="login-page bg-body-secondary">
+    <div class="login-box">
+        <div class="card card-outline card-primary">
+            <div class="card-header">
+                <a href="../index2.html" class="link-dark text-center link-offset-2 link-opacity-100 link-opacity-50-hover">
+                    <h1 class="mb-0"><b>Devices Manager</b></h1>
+                </a>
+            </div>
+            <div class="card-body login-card-body">
+
+                <form method="post" id="submitLoginInfoForm"  action="/" class="vertical-form">
+                       {% csrf_token %}
+                    <p class="login-box-msg">登录界面</p>
+
+                    <!-- IMEI/SN -->
+                    <div class="form-group">
+                        <label for="work_name"><span style="color: red;">*</span> 工号:</label>
+                        <input type="text" class="form-control" id="work_name" placeholder="" name="work_name" value="">
+                    </div>
+
+                    <!-- model_name -->
+                    <div class="form-group">
+                         <label for="work_password"><span style="color: red;">*</span> 密码:</label>
+                        <input type="password" class="form-control" id="work_password" placeholder="" name="work_password" value="">
+                    </div>
+
+
+                    <!-- 提交按钮 -->
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-outline-success ml-3" id="submitLogin" onclick="login_submit(event)">Submit</button>
+                        <button type="submit" class="btn btn-outline-success ml-3" id="cancelLogin" onclick="login_cancel(event)">Cancel</button>
+                    </div>
+                </form>
+
+
+            </div> <!-- /.login-card-body -->
+        </div>
+    </div> <!-- /.login-box --> <!--begin::Third Party Plugin(OverlayScrollbars)-->
+    <script src="/AdminLTE/AdminLTE-4.0.x/dist/assets/overlayscrollbars/overlayscrollbars.browser.es6.min.js" integrity="sha256-H2VM7BKda+v2Z4+DRy69uknwxjyDRhszjXFhsL4gD3w=" crossorigin="anonymous"></script> <!--end::Third Party Plugin(OverlayScrollbars)-->
+    <!--begin::Required Plugin(popperjs for Bootstrap 5)-->
+    <script src="/AdminLTE/AdminLTE-4.0.x/dist/assets/popperjs/popper.min.js" integrity="sha256-whL0tQWoY1Ku1iskqPFvmZ+CHsvmRWx/PIoEvIeWh4I=" crossorigin="anonymous"></script> <!--end::Required Plugin(popperjs for Bootstrap 5)-->
+    <!--begin::Required Plugin(Bootstrap 5)-->
+    <script src="/AdminLTE/AdminLTE-4.0.x/dist/assets/bootstrap/bootstrap.min.js" integrity="sha256-YMa+wAM6QkVyz999odX7lPRxkoYAan8suedu4k2Zur8=" crossorigin="anonymous"></script> <!--end::Required Plugin(Bootstrap 5)-->
+    <!--begin::Required Plugin(AdminLTE)-->
+    <script src="../../../dist/js/adminlte.js"></script> <!--end::Required Plugin(AdminLTE)-->
+    <!--begin::OverlayScrollbars Configure-->
+
+</body><!--end::Body-->
+<script src="{% static 'adminlte/plugins/jquery/jquery.min.js' %}"></script>
+<!-- Bootstrap 4 -->
+<script src="{% static 'adminlte/plugins/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<!-- DataTables  & Plugins -->
+<script src="{% static 'adminlte/plugins/datatables/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-responsive/js/dataTables.responsive.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-responsive/js/responsive.bootstrap4.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/dataTables.buttons.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/buttons.bootstrap4.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/jszip/jszip.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/pdfmake/pdfmake.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/pdfmake/vfs_fonts.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/buttons.html5.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/buttons.print.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/buttons.colVis.min.js' %}"></script>
+<!-- AdminLTE App -->
+<script src="{% static 'adminlte/dist/js/adminlte.min.js' %}"></script>
+<!-- AdminLTE for demo purposes -->
+<script src="{% static 'adminlte/dist/js/demo.js' %}"></script>
+<script src="{% static 'js/login/login_ui.js' %}"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/crypto-js.min.js"></script>
+
+</html>

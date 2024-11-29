@@ -1,0 +1,37 @@
+{% load static %}
+
+<li class="nav-item dropdown user-menu">
+    <a href="/login" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
+        <span class="d-none d-md-inline">{{ work_name }}</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-end">
+        <li class="user-header text-bg-primary">
+            <p>{{ work_name }} - Web Developer</p>
+            <small>Member since Nov. 2023</small>
+        </li>
+        <li class="user-footer">
+            <a href="/login/" class="btn btn-default btn-flat" data-bs-toggle="modal" data-bs-target="#userInfoModal">Profile</a>
+            <a href="#" class="btn btn-default btn-flat float-end">Sign out</a>
+        </li>
+    </ul>
+</li>
+
+<!-- User Information Modal -->
+<div class="modal fade" id="userInfoModal" tabindex="-1" aria-labelledby="userInfoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="userInfoModalLabel">User Information</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Name:</strong> {{ work_name }}</p>
+                <p><strong>Role:</strong> Web Developer</p>
+                <p><strong>Member Since:</strong> Nov. 2023</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>

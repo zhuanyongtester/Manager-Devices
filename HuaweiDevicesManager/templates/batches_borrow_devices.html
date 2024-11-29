@@ -1,0 +1,161 @@
+{% load static %}
+<html lang="en">
+<head>
+    {% include 'baseside/header.html' %}
+    <link rel="stylesheet" href="{% static 'css/baseapp/view_table_devices_style.css' %}">
+    <link rel="stylesheet" href="{% static 'adminlte/plugins/datatables-bs4/css/dataTables.bootstrap4.min.css' %}">
+    <link rel="stylesheet" href="{% static 'adminlte/plugins/datatables-responsive/css/responsive.bootstrap4.min.css' %}">
+    <link rel="stylesheet" href="{% static 'adminlte/plugins/datatables-buttons/css/buttons.bootstrap4.min.css' %}">
+</head>
+<body class="hold-transition sidebar-mini">
+<div class="wrapper">
+    {% include 'baseside/home_page.html' %}
+    {% include 'baseside/left_nev.html' %}
+
+    <div class="content-wrapper">
+        <section class="content-header">
+            <div class="container-fluid">
+                <div class="row mb-2">
+                    <div class="col-sm-6">
+                        <h1>批量借机器</h1>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="content">
+            <div class="card">
+                <div class="card-header">
+                    <h1 id="deviceImei" class="package-name text-center">展示可借的机器</h1>
+                    <div class="form-group row mt-3">
+                        <label for="imeiSearch" class="col-sm-2 col-form-label">搜索设备:</label>
+                        <div class="col-sm-8">
+                            <input type="text" id="imeiSearch" class="form-control" placeholder="请输入 IMEI/SN或者设备名 查询" onkeyup="searchDeviceByIMEI()">
+                        </div>
+                        <div class="col-sm-2">
+                            <button type="button" class="btn btn-primary" onclick="searchDeviceByIMEI()">搜索</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 表格1：所有设备列表 -->
+            <div class="card-body">
+                <table id="deviceListTable" class="table table-bordered table-striped">
+                    <thead>
+                        <tr>
+                            <th>No.</th>
+                            <th>设备名称</th>
+                            <th>设备颜色</th>
+                            <th>IMEI/SN</th>
+                            <th>添加设备</th>
+                        </tr>
+                    </thead>
+                    <tbody id="deviceListBody">
+                        {% for device_info in devices %}
+                        <tr id="deviceRow{{ device_info.imei_sn }}">
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ device_info.model_name }}</td>
+                            <td>{{ device_info.color }}</td>
+                            <td>{{ device_info.imei_sn }}</td>
+                            <td>
+                                <button class="btn btn-sm btn-success" onclick="addDevice('{{ device_info.imei_sn }}', '{{ device_info.model_name }}', '{{ device_info.color }}')">+</button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center">没有可借用的设备</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <form id="viewDevicesInfoForm" action="{% url 'DevicesManager:borrow_Devices' %}" method="POST">
+                <div class="card-body">
+                    <h4>已选设备列表</h4>
+                    <table id="selectedDeviceTable" class="table table-bordered table-striped">
+                        <thead>
+                            <tr>
+                                <th>No.</th>
+                                <th>设备名称</th>
+                                <th>设备颜色</th>
+                                <th>IMEI/SN</th>
+                                <th>移除设备</th>
+                            </tr>
+                        </thead>
+                        <tbody id="selectedDeviceTableBody">
+                            <!-- 动态添加已选择设备行 -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <h1 class="package-name text-center">借机人信息</h1>
+                <div class="form-group">
+                    <label for="borrow_job_number"><span style="color: red;">*</span> 借机人工号:</label>
+                    <input type="text" class="form-control" id="borrow_job_number" name="borrow_job_number"
+                           value="{{ borrow_job_number }}" placeholder="输入工号" oninput="fetchJobNumbers(this.value)">
+                    <div id="suggestions" class="list-group position-absolute" style="z-index: 1000;"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="borrowName"><span style="color: red;">*</span> 借机人名字:</label>
+                    <input type="text" class="form-control" id="borrowName" name="borrowName" value="{{ borrowName }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="borrow_department"><span style="color: red;">*</span> 部门 :</label>
+                    <input type="text" class="form-control" id="borrow_department" name="borrow_department" value="{{ borrow_department }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="borrow_days"><span style="color: red;">*</span> 借机时间（/天） :</label>
+                    <input type="text" class="form-control" id="borrow_days" name="borrow_days" value="{{ borrow_days }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="borrow_description">借机理由:</label>
+                    <input type="text" class="form-control" id="borrow_description" name="borrow_description" value="{{ borrow_description }}">
+                </div>
+
+                <h1 class="package-name text-center">审批人: {{ borrow_admin_Name }}</h1>
+
+                <!-- 提交按钮 -->
+                <div class="text-center">
+                    <button type="button" class="btn btn-outline-success ml-3" id="submitDevicesBorrowAll" onclick="devices_borrow_all_submit(event)">Borrow Devices</button>
+                    <button type="button" class="btn btn-outline-success ml-3" id="cancelDevicesBorrowAll" onclick="devices_borrow_all_cancel(event)">Cancel</button>
+                </div>
+            </form>
+        </section>
+    </div>
+</div>
+<!-- jQuery -->
+<script src="{% static 'adminlte/plugins/jquery/jquery.min.js' %}"></script>
+<!-- Bootstrap 4 -->
+<script src="{% static 'adminlte/plugins/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<!-- DataTables  & Plugins -->
+<script src="{% static 'adminlte/plugins/datatables/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-responsive/js/dataTables.responsive.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-responsive/js/responsive.bootstrap4.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/dataTables.buttons.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/buttons.bootstrap4.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/jszip/jszip.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/pdfmake/pdfmake.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/pdfmake/vfs_fonts.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/buttons.html5.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/buttons.print.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/datatables-buttons/js/buttons.colVis.min.js' %}"></script>
+<!-- AdminLTE App -->
+<script src="{% static 'adminlte/dist/js/adminlte.min.js' %}"></script>
+<!-- AdminLTE for demo purposes -->
+<script src="{% static 'adminlte/dist/js/demo.js' %}"></script>
+
+<script src="{% static 'js/baseapp/borrow_batches_devices.js' %}"></script>
+<!-- Page specific script -->
+<script>
+
+</script>
+
+</body>
+</html>
