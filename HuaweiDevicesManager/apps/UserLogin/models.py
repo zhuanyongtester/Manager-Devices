@@ -14,7 +14,7 @@ class CustomUser(models.Model):
     work_password = models.CharField(max_length=128)  # 密码应存储为散列值
     work_name = models.CharField(max_length=100, default="" ,verbose_name="管理员的名字")
     work_remark=models.CharField(max_length=200, default="" ,verbose_name="管理员描述")
-
+    db_table = 't_admin_custom'  # 指定数据库表名
     def save(self, *args, **kwargs):
         # 对密码进行哈希处理
         if not self.pk:  # 只在创建新用户时哈希密码
@@ -30,6 +30,8 @@ class Token(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
 
+    class Meta:
+        db_table = 't_admin_token'  # 指定数据库表名
     def is_expired(self):
         return timezone.now() >= self.expires_at
 

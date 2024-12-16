@@ -26,7 +26,10 @@ SECRET_KEY = 'django-insecure-cx(bsig6@d$-cunmzu9f0dbm0#20kfoe=pp4rk)*u9y5hj5na%
 DEBUG = True
 
 ALLOWED_HOSTS = []
-
+CSRF_TRUSTED_ORIGINS = ['http://localhost:8000']
+CSRF_COOKIE_NAME = 'csrftoken'
+CSRF_USE_SESSIONS = False
+CSRF_COOKIE_SECURE = False  # 不使用 HTTPS 时允许
 
 # Application definition
 
@@ -39,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'apps.DevicesManager',
     'apps.UserLogin',
+    'apps.CustomManager',
 
 ]
 
@@ -79,9 +83,9 @@ WSGI_APPLICATION = 'HuaweiDevicesManager.wsgi.application'
 DATABASES = {
     "default": {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'db_huawei_manager',
+        'NAME': 'db_custom_manager',
         'USER': 'root',
-        'PASSWORD': '454659',
+        'PASSWORD': 'Zwx249198',
         'HOST': '127.0.0.1',
         'PORT': 3306,
     }

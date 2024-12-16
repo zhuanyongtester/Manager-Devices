@@ -1,5 +1,6 @@
 from django.shortcuts import render
 from apps.UserLogin.Login.LoginBaseView import BaseView
+
 # Create your views here.
 class AdminLoginView(BaseView):
     def get(self,request):
