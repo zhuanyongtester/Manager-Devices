@@ -27,7 +27,14 @@ class UserProfile(models.Model):
     def __str__(self):
         return self.name
 
-
+    @classmethod
+    def get_user_id(cls, login_id, login_type, password):
+        try:
+            # 查询匹配用户
+            user = cls.objects.get(login_id=login_id, login_type=login_type, password=password)
+            return user
+        except cls.DoesNotExist:
+            return None
 
     def generate_user_id(self):
         # 获取计数器
@@ -143,7 +150,7 @@ class UserActivity(models.Model):
 
 class UserTokens(models.Model):
     token_id = models.AutoField(primary_key=True, verbose_name="主键 ID")
-    user_id = models.CharField(max_length=255, verbose_name="用户唯一标识符", unique=True)  # 关联 UserProfile
+    user_id = models.ForeignKey(UserProfile, on_delete=models.CASCADE, verbose_name="用户唯一标识符")
     access_token = models.CharField(max_length=255, verbose_name="访问令牌 (access token)")
     refresh_token = models.CharField(max_length=255, verbose_name="刷新令牌 (refresh token)")
     token_type = models.CharField(max_length=50, verbose_name="令牌类型", default="Bearer")
@@ -163,7 +170,7 @@ class UserTokens(models.Model):
 
 class UserSessions(models.Model):
     session_id = models.AutoField(primary_key=True, verbose_name="会话唯一标识符")
-    user_id = models.CharField(max_length=255, verbose_name="用户唯一标识符")  # 关联 UserProfile 表
+    user_id = models.ForeignKey(UserProfile, on_delete=models.CASCADE, verbose_name="用户唯一标识符")
     session_key = models.CharField(max_length=255, verbose_name="会话密钥", unique=True)
     user_agent = models.CharField(max_length=255, verbose_name="用户的浏览器/设备信息")
     ip_address = models.CharField(max_length=45, verbose_name="用户登录时的 IP 地址")  # 支持 IPv4 和 IPv6
@@ -185,7 +192,7 @@ class UserSessions(models.Model):
 
 class UserAuthLogs(models.Model):
     log_id = models.AutoField(primary_key=True, verbose_name="日志唯一标识符")
-    user_id = models.CharField(max_length=255, verbose_name="用户唯一标识符")  # 关联 UserProfile 表
+    user_id = models.ForeignKey(UserProfile, on_delete=models.CASCADE, verbose_name="用户唯一标识符")
     action = models.CharField(max_length=50, choices=[('login', 'Login'), ('logout', 'Logout')], verbose_name="动作类型")
     timestamp = models.DateTimeField(default=now, verbose_name="发生时间")
     ip_address = models.CharField(max_length=45, verbose_name="用户登录时的 IP 地址")  # 支持 IPv4 和 IPv6

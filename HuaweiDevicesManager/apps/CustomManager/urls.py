@@ -17,9 +17,10 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path,re_path
 
-from apps.CustomManager.views import UserRegisterView
+from apps.CustomManager.views import UserRegisterView,UserLoginView
 app_name = 'DevicesManager'
 urlpatterns = [
     re_path(r'^register', UserRegisterView.as_view(), name='user_register'),
+    re_path(r'^login', UserLoginView.as_view(), name='user_login'),
 
 ]

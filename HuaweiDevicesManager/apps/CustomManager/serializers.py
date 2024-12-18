@@ -66,7 +66,22 @@ class UserPreferencesSerializer(serializers.ModelSerializer):
 class UserTokensSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserTokens
-        fields = '__all__'
+        fields = [
+            "token_id",
+            "user_id","access_token","refresh_token","token_type",
+            "created_at","expires_at","last_used_at","is_active"
+        ]
+        extra_kwargs = {
+            'user_id': {'read_only': True},  # 不允许前端传递
+            'token_id':{'read_only': True},
+        }
+
+        def create(self, validated_data):
+
+            user_token= UserTokens.objects.create(**validated_data)
+
+            user_token.save()
+            return user_token
 
 # UserSessions Serializer
 class UserSessionsSerializer(serializers.ModelSerializer):
