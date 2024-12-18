@@ -1,10 +1,15 @@
+import re
+
 from django.db import models
 from django.utils.timezone import now
 
 
+class UserIdCounter(models.Model):
+    counter_name = models.CharField(max_length=50, unique=True)
+    current_value = models.PositiveIntegerField(default=1000000)  #
 # Create your models here.
 class UserProfile(models.Model):
-    user_id = models.CharField(max_length=255, unique=True, verbose_name="用户唯一标识符")
+    user_id = models.CharField(max_length=255, unique=True, primary_key=True,verbose_name="用户唯一标识符")
     name = models.CharField(max_length=100, verbose_name="用户姓名")
     gender = models.CharField(max_length=10, choices=[('male', 'Male'), ('female', 'Female')], verbose_name="性别")
     age = models.IntegerField(verbose_name="年龄")
@@ -22,10 +27,27 @@ class UserProfile(models.Model):
     def __str__(self):
         return self.name
 
+
+
+    def generate_user_id(self):
+        # 获取计数器
+        counter, created = UserIdCounter.objects.get_or_create(counter_name='user_id')
+        new_id = counter.current_value
+        counter.current_value += 1
+        counter.save()
+        return f"{new_id:07d}"
+
+
+    def save(self, *args, **kwargs):
+        if not self.user_id:
+            self.user_id = self.generate_user_id()
+        super().save(*args, **kwargs)
+
     class Meta:
         db_table = 't_user_profile'
         verbose_name = "用户资料"
         verbose_name_plural = "用户资料"
+        unique_together = ('login_id', 'login_type')
 
 
 class UserEvent(models.Model):
