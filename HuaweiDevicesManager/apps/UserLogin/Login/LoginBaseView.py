@@ -29,7 +29,6 @@ class BaseView(View):
     def authAccount(self,request):
         if not request.body:
             return JsonResponse({"success": False, "message": "请求体为空"})
-
         try:
             data = json.loads(request.body.decode('utf-8'))
         except json.JSONDecodeError as e:

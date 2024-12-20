@@ -4,7 +4,6 @@ from apps.CustomManager.untils.mangertools import AccountUserManager
 # UserProfile Serializer
 class UserProfileSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
-
     class Meta:
         model = UserProfile
         fields = [
@@ -18,18 +17,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
         }
 
-        def validate_login_id(self, value):
-            """ 自定义验证 `login_id` 唯一性错误信息 """
-            if UserProfile.objects.filter(login_id=value).exists():
-                raise serializers.ValidationError({"login_id": "该邮箱或手机号已被使用，请使用其他的。"})
-            return value
-
-        def validate(self, data):
-            """ 全局错误处理，用于替换默认的错误消息 """
-            errors = super().validate(data)
-            if errors:
-                raise serializers.ValidationError(errors)
-            return data
 
         def create(self, validated_data):
             password = validated_data.pop('password')
@@ -67,21 +54,20 @@ class UserTokensSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserTokens
         fields = [
-            "token_id",
-            "user_profile","access_token","refresh_token","token_type",
-            "created_at","expires_at","last_used_at","is_active"
+            'user_id', 'access_token', 'refresh_token', 'token_type',
+            'created_at', 'expires_at', 'last_used_at', 'is_active'
         ]
         extra_kwargs = {
-            'user_profile': {'read_only': True},  # 不允许前端传递
-            'token_id':{'read_only': True},
+            'user_id': {'read_only': True},  # 不允许前端传递 user_id
+            'access_token': {'write_only': True},  # 访问令牌一般也不应返回给前端
+            'refresh_token': {'write_only': True},  # 同样，刷新令牌也是敏感信息
         }
 
-        def create(self, validated_data):
+    def create(self, validated_data):
+        user = UserTokens.objects.create(**validated_data)
+        user.save()
+        return user
 
-            user_token= UserTokens.objects.create(**validated_data)
-
-            user_token.save()
-            return user_token
 
 # UserSessions Serializer
 class UserSessionsSerializer(serializers.ModelSerializer):

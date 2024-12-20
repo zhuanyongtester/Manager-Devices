@@ -22,5 +22,4 @@ app_name = 'DevicesManager'
 urlpatterns = [
     re_path(r'^register', UserRegisterView.as_view(), name='user_register'),
     re_path(r'^login', UserLoginView.as_view(), name='user_login'),
-
 ]
