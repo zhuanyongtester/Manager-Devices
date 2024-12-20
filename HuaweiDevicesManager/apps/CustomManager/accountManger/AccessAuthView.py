@@ -161,15 +161,16 @@ class AccessAuth(APIView):
         login_id = request.data.get("login_id")
         login_type = request.data['login_type']
         password = request.data['password']
-        user = UserProfile.get_user_id(login_id, login_type, password)
-        if not user:
+        user = self.get_user_id(login_id, login_type, password)
+        print("User："+str(user.user_id))
+        if  user is None:
             return response.Response({
                 "statusCode": status.HTTP_404_NOT_FOUND,
                 "resultCode": 1002,
                 "message": "User not found or invalid credentials",
             }, status=status.HTTP_404_NOT_FOUND)
         token_data={
-            "user_id": user.user_id,
+            "user_profile": user,
             "access_token": "sampleaccesstoken1234",  # 示例令牌生成逻辑
             "refresh_token": "samplerefreshtoken1235",
             "token_type": "Bearer",
@@ -177,3 +178,11 @@ class AccessAuth(APIView):
         }
         return token_data
 
+
+    def get_user_id(self, login_id, login_type, password):
+        try:
+            # 查询匹配用户
+            return UserProfile.objects.get(login_id=login_id, login_type=login_type, password=password)
+
+        except UserProfile.DoesNotExist:
+            return None

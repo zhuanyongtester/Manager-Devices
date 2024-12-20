@@ -68,11 +68,11 @@ class UserTokensSerializer(serializers.ModelSerializer):
         model = UserTokens
         fields = [
             "token_id",
-            "user_id","access_token","refresh_token","token_type",
+            "user_profile","access_token","refresh_token","token_type",
             "created_at","expires_at","last_used_at","is_active"
         ]
         extra_kwargs = {
-            'user_id': {'read_only': True},  # 不允许前端传递
+            'user_profile': {'read_only': True},  # 不允许前端传递
             'token_id':{'read_only': True},
         }
 
