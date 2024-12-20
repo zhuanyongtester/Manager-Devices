@@ -1,49 +1,29 @@
-from django.db import transaction
-from django.db.models import Max
 from rest_framework import serializers
 from .models import UserProfile, UserAuthLogs, UserSocial, UserInterests, UserTokens, UserSessions, UserEvent, UserPreferences
-
+from apps.CustomManager.untils.mangertools import AccountUserManager
 # UserProfile Serializer
 class UserProfileSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
     class Meta:
         model = UserProfile
         fields = [
-             'user_id','name', 'gender', 'age', 'birthday', 'location', 'profession', 'language',
+            'user_id',
+            'name', 'gender', 'age', 'birthday', 'location', 'profession', 'language',
             'login_id', 'login_type', 'password', 'created_at', 'updated_at'
         ]
         extra_kwargs = {
             'password': {'write_only': True, 'required': True},  # 加密保存密码
-            'user_id': {'read_only': True}  # 标明 user_id 为只读，由服务器生成
+            'user_id': {'read_only': True},  # 不允许前端传递
+
         }
 
+
         def create(self, validated_data):
-            login_id = validated_data.get('login_id')
-            validated_data['user_id'] = "1000001"  # 设置生成的 user_id
-            print(f"Generated user_id: {validated_data['user_id']}")  # 打印调试信息
-            # Hash the password before saving
             password = validated_data.pop('password')
-            user = UserProfile.objects.create(**validated_data)  # 创建用户并保存数据
+            user = UserProfile.objects.create(**validated_data)
             user.set_password(password)  # 使用 set_password 对密码加密
-            user.save()  # 保存用户
-
+            user.save()
             return user
-
-            # # 检查 login_id 是否已存在
-            # if not UserProfile.objects.filter(login_id=login_id).exists():
-            #     max_user_id = UserProfile.objects.all().aggregate(Max('user_id'))['user_id__max']
-            #     # 如果 login_id 不存在，则生成 user_id
-            #     if max_user_id is None:
-            #         new_user_id = 1000000  # 如果数据库中没有记录，则从1000000开始
-            #     else:
-            #         new_user_id = max_user_id + 1  # 当前最大值+1
-
-
-
-
-
-
-
 
 # UserAuthLogs Serializer
 class UserAuthLogsSerializer(serializers.ModelSerializer):
@@ -73,7 +53,21 @@ class UserPreferencesSerializer(serializers.ModelSerializer):
 class UserTokensSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserTokens
-        fields = '__all__'
+        fields = [
+            'user_id', 'access_token', 'refresh_token', 'token_type',
+            'created_at', 'expires_at', 'last_used_at', 'is_active'
+        ]
+        extra_kwargs = {
+            'user_id': {'read_only': True},  # 不允许前端传递 user_id
+            'access_token': {'write_only': True},  # 访问令牌一般也不应返回给前端
+            'refresh_token': {'write_only': True},  # 同样，刷新令牌也是敏感信息
+        }
+
+    def create(self, validated_data):
+        user = UserTokens.objects.create(**validated_data)
+        user.save()
+        return user
+
 
 # UserSessions Serializer
 class UserSessionsSerializer(serializers.ModelSerializer):
