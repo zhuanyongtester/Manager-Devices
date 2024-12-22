@@ -1,3 +1,4 @@
+from django.utils.timezone import now
 from rest_framework import serializers
 from .models import UserProfile, UserAuthLogs, UserSocial, UserInterests, UserTokens, UserSessions, UserEvent, UserPreferences
 from apps.CustomManager.untils.mangertools import AccountUserManager
@@ -29,7 +30,14 @@ class UserProfileSerializer(serializers.ModelSerializer):
 class UserAuthLogsSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserAuthLogs
-        fields = '__all__'
+        fields = ["user_id",
+                  "action", "timestamp", "ip_address", "device"
+            , "success", "failure_reason"]
+
+        def create(self, validated_data):
+            user = UserAuthLogs.objects.create(**validated_data)
+            user.save()
+            return user
 
 # UserSocial Serializer
 class UserSocialSerializer(serializers.ModelSerializer):
@@ -58,9 +66,9 @@ class UserTokensSerializer(serializers.ModelSerializer):
             'created_at', 'expires_at', 'last_used_at', 'is_active'
         ]
         extra_kwargs = {
-            'user_id': {'read_only': True},  # 不允许前端传递 user_id
-            'access_token': {'write_only': True},  # 访问令牌一般也不应返回给前端
-            'refresh_token': {'write_only': True},  # 同样，刷新令牌也是敏感信息
+            # 'user_id': {'read_only': True},  # 不允许前端传递 user_id
+            # 'access_token': {'write_only': True},  # 访问令牌一般也不应返回给前端
+            # 'refresh_token': {'write_only': True},  # 同样，刷新令牌也是敏感信息
         }
 
     def create(self, validated_data):
@@ -73,10 +81,34 @@ class UserTokensSerializer(serializers.ModelSerializer):
 class UserSessionsSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserSessions
-        fields = '__all__'
+        fields = ["user_id",
+                  "session_key","user_agent","ip_address","last_activity"
+                  ,"is_active","created_at","login_method"]
+
+        def create(self, validated_data):
+            user = UserSessions.objects.create(**validated_data)
+            user.save()
+            return user
+
+        def update(self, instance, validated_data):
+            """
+            Update an existing session record.
+            """
+            # 更新字段的值
+            instance.session_key = validated_data.get("session_key", instance.session_key)
+            instance.user_agent = validated_data.get("user_agent", instance.user_agent)
+            instance.ip_address = validated_data.get("ip_address", instance.ip_address)
+            instance.last_activity = validated_data.get("last_activity", now())  # 默认当前时间
+            instance.is_active = validated_data.get("is_active", instance.is_active)
+
+            # 保存更新后的实例
+            instance.save()
+            return instance
 
 # UserEvent Serializer
 class UserEventSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserEvent
         fields = '__all__'
+
+

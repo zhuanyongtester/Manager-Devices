@@ -163,6 +163,7 @@ class UserSessions(models.Model):
     session_key = models.CharField(max_length=255, verbose_name="会话密钥", unique=True)
     user_agent = models.CharField(max_length=255, verbose_name="用户的浏览器/设备信息")
     ip_address = models.CharField(max_length=45, verbose_name="用户登录时的 IP 地址")  # 支持 IPv4 和 IPv6
+    login_method = models.CharField(max_length=20, choices=[('password', 'Password'), ('token', 'Token')], default='password', verbose_name="登录方式")
     last_activity = models.DateTimeField(default=now, verbose_name="最后活动时间")
     is_active = models.BooleanField(default=True, verbose_name="会话是否有效")
     created_at = models.DateTimeField(default=now, verbose_name="会话创建时间")
@@ -187,6 +188,8 @@ class UserAuthLogs(models.Model):
     ip_address = models.CharField(max_length=45, verbose_name="用户登录时的 IP 地址")  # 支持 IPv4 和 IPv6
     device = models.CharField(max_length=255, verbose_name="用户登录时使用的设备信息")
     success = models.BooleanField(default=True, verbose_name="登录是否成功")
+    failure_reason = models.TextField(null=True, blank=True, verbose_name="失败原因")  # 新增字段
+
 
     def __str__(self):
         return f"{self.user_id} - {self.action} - {self.timestamp}"
