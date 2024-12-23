@@ -183,7 +183,16 @@ class UserSessions(models.Model):
 class UserAuthLogs(models.Model):
     log_id = models.AutoField(primary_key=True, verbose_name="日志唯一标识符")
     user_id = models.ForeignKey(UserProfile, on_delete=models.CASCADE, verbose_name="用户唯一标识符")
-    action = models.CharField(max_length=50, choices=[('login', 'Login'), ('logout', 'Logout')], verbose_name="动作类型")
+    action = models.CharField(
+        max_length=50,
+        choices=[
+            ('login', 'Login'),
+            ('logout', 'Logout'),
+            ('token', 'Token'),
+            ('refresh', 'Refresh')
+        ],
+        verbose_name="动作类型"
+    )
     timestamp = models.DateTimeField(default=now, verbose_name="发生时间")
     ip_address = models.CharField(max_length=45, verbose_name="用户登录时的 IP 地址")  # 支持 IPv4 和 IPv6
     device = models.CharField(max_length=255, verbose_name="用户登录时使用的设备信息")

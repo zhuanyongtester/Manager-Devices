@@ -1,6 +1,7 @@
 from django.utils.timezone import now
 from rest_framework import serializers
-from .models import UserProfile, UserAuthLogs, UserSocial, UserInterests, UserTokens, UserSessions, UserEvent, UserPreferences
+from .models import UserProfile, UserAuthLogs, UserSocial, UserInterests, UserTokens, UserSessions, UserEvent, \
+    UserPreferences, UserActivity
 from apps.CustomManager.untils.mangertools import AccountUserManager
 # UserProfile Serializer
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -33,6 +34,7 @@ class UserAuthLogsSerializer(serializers.ModelSerializer):
         fields = ["user_id",
                   "action", "timestamp", "ip_address", "device"
             , "success", "failure_reason"]
+        # fields = '__all__'  # 或者列出字段
 
         def create(self, validated_data):
             user = UserAuthLogs.objects.create(**validated_data)
@@ -57,6 +59,18 @@ class UserPreferencesSerializer(serializers.ModelSerializer):
         model = UserPreferences
         fields = '__all__'
 
+class UserActivitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model=UserActivity
+        fields=[
+            'user_id',
+            "activity_type","activity_data"
+        ]
+
+        def create(self, validated_data):
+            user = UserActivity.objects.create(**validated_data)
+            user.save()
+            return user
 # UserTokens Serializer
 class UserTokensSerializer(serializers.ModelSerializer):
     class Meta:

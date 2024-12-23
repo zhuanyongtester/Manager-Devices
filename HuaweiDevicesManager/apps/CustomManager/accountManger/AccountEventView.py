@@ -1,10 +1,12 @@
+import json
+
 from django.utils.timezone import now
 from rest_framework.views import APIView
 import uuid
 import hashlib
 from datetime import datetime
 from apps.CustomManager.models import UserSessions, UserAuthLogs
-from apps.CustomManager.serializers import UserSessionsSerializer, UserEventSerializer, UserAuthLogsSerializer
+from apps.CustomManager.serializers import UserSessionsSerializer, UserAuthLogsSerializer, UserActivitySerializer
 
 
 class AccountEvent(APIView):
@@ -70,14 +72,14 @@ class AccountEvent(APIView):
         return session_key
 
     @classmethod
-    def log_user_action(user_id, action, success, ip_address, device, failure_reason=None):
+    def log_user_action(cls,user_id, action, success, ip_address, device, failure_reason=None):
         if device is None:
             device = "unknown_device device"
         if ip_address is None:
             ip_address = "unknown_device ip address"
 
         data={
-                "user_id":user_id if success else None,  # 如果失败，user_id 可能为空
+                "user_id":user_id ,  # 如果失败，user_id 可能为空
                 "action":action,
                 "timestamp":now(),
                 "ip_address":ip_address,
@@ -90,5 +92,30 @@ class AccountEvent(APIView):
 
         if serializer.is_valid():
             # 保存新记录
-            serializer.save()
+            user=serializer.save()
+            print("log_user_action:"+str(serializer.data))
+        else:
+            print("log_user_action:"+str(serializer.errors))
 
+    @classmethod
+    def create_activity(cls, user_id, activity_type,  activity_data):
+        if activity_data:
+              activity_data_str = json.dumps(activity_data)
+        else:
+            activity_data_str={}
+        data = {
+            "user_id": user_id,  # 如果失败，user_id 可能为空
+            "activity_type": activity_type,
+            "activity_data": activity_data_str,
+            "activity_time": now(),
+
+        }
+
+        serializer =UserActivitySerializer(data=data)
+
+        if serializer.is_valid():
+            # 保存新记录
+            user = serializer.save()
+            print("create_activity:"+str(serializer.data))
+        else:
+            print("create_activity:"+str(serializer.errors))
