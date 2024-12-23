@@ -5,6 +5,7 @@ from idlelib.textview import ViewWindow
 from urllib import request
 
 from django.conf import settings
+from django.db.models import Q
 from django.utils.timezone import localtime
 import jwt
 from django.utils import timezone
@@ -55,7 +56,7 @@ class AccessAuth(VerifyParm):
 
     def loginStatus(self,request):
         # 必须字段检查
-
+        logger = AccountEvent()
         required_fields = ['login_id', 'password','login_type']
         error_fields = self.verify_fields(request, required_fields)
         action = 'login'
@@ -100,6 +101,8 @@ class AccessAuth(VerifyParm):
                 'message': f"{login_id} Login failed",
                 'errors': dataResult
             }
+
+            logger.log_user_action(user_profile.user_id, action,False, ip_address, user_agent, dataResult)
             return self._getRespones(result)
         access_token, expiration_time = self.generate_access_token(login_id, password)
         refresh_token = self.generate_refresh_token()
@@ -111,7 +114,7 @@ class AccessAuth(VerifyParm):
                 'message': f"{login_id} Login failed",
                 'errors': sessionData
             }
-            AccountEvent.log_user_action(user_profile.user_id, action, ip_address, user_agent, sessionData)
+            logger.log_user_action(user_profile.user_id, action,False, ip_address, user_agent, sessionData)
             return self._getRespones(result)
         data = {
             "user_id": user_profile.user_id,
@@ -127,13 +130,19 @@ class AccessAuth(VerifyParm):
             'message': f"{login_id} Login success",
             'data': data
         }
+        devices_data = {
+            "user_agent": user_agent,
+            "ip_address": ip_address
 
-        AccountEvent.log_user_action(user_profile.user_id,action,ip_address,user_agent,None)
+        }
+        logger.log_user_action(user_profile.user_id,action,True,ip_address,user_agent,data)
+        logger.create_activity(user_profile.user_id, action, devices_data)
         return self._getSuccessRespones(result)
 
 
     def logoutStatus(self, request):
-
+        logger = AccountEvent()
+        action="logout"
         required_fields = ['login_id', 'login_type']
         error_fields = self.verify_fields(request, required_fields)
         if error_fields:
@@ -160,7 +169,9 @@ class AccessAuth(VerifyParm):
                 'message': f"{login_id} Login failed",
                 'errors': err_data
             }
+
             return self._getRespones(result)
+        user_agent, ip_address = self.getUserAgent(request)
         user_profile = UserProfile.objects.filter(login_id=login_id, login_type=login_type)
         if not user_profile.exists():
             err_data = login_id + ":don't  exist"
@@ -169,9 +180,10 @@ class AccessAuth(VerifyParm):
                 'message': f"{login_id} Login failed",
                 'errors': err_data
             }
+            logger.log_user_action(user_profile.user_id, action, False, ip_address, user_agent, err_data)
             return self._getRespones(result)
         token = auth_header.split(' ')[1]
-        user_agent, ip_address = self.getUserAgent(request)
+
         try:
             # 获取当前用户的令牌信息
             user_profile = UserProfile.objects.filter(login_id=login_id, login_type=login_type).first()
@@ -193,6 +205,10 @@ class AccessAuth(VerifyParm):
                     'message': f"{login_id} logout success",
                     'data': data
                 }
+                message=f"{login_id} logout success"
+                logger.log_user_action(user_profile.user_id, action, True, ip_address, user_agent, message)
+                logger.create_activity(user_profile.user_id,action,data)
+
                 return self._getSuccessRespones(result)
             else:
                 data = "access_token had Expired"
@@ -201,6 +217,8 @@ class AccessAuth(VerifyParm):
                     'message': f"{login_id} logout failed",
                     'errors': data
                 }
+                logger.log_user_action(user_profile.user_id, action, False, ip_address, user_agent, data)
+
                 return self._getRespones(result)
         except Exception as e:
 
@@ -210,9 +228,13 @@ class AccessAuth(VerifyParm):
                 'message': f"{login_id} logout failed",
                 'errors': data
             }
+            logger.log_user_action(user_profile.user_id, action, False, ip_address, user_agent, data)
             return self._getRespones(result)
 
     def refreshTokenStatus(self, request):
+        logger = AccountEvent()
+
+        login_method = "refresh"
         required_fields = ['login_id', 'refresh_token', 'login_type']
         error_fields = self.verify_fields(request, required_fields)
         if error_fields:
@@ -235,7 +257,7 @@ class AccessAuth(VerifyParm):
                 'message': "Invalid access token",
                 'errors': {"Authorization": "refresh_token type missing."}
             })
-
+        user_agent, ip_address = self.getUserAgent(request)
         # 验证用户是否存在
         if not self.verify_id_exist(login_id, login_type):
             return self._getRespones({
@@ -245,7 +267,9 @@ class AccessAuth(VerifyParm):
             })
 
         user_profile = UserProfile.objects.filter(login_id=login_id, login_type=login_type)
+        logg_user_id=user_profile.first().user_id
         if not user_profile.exists():
+
             return self._getRespones({
                 'result_code': self.code_f_id_exist,
                 'message': f"{login_id} Login failed",
@@ -258,14 +282,17 @@ class AccessAuth(VerifyParm):
                 user_id=user_profile.first(), refresh_token=refresh_token, is_active=True
             )
             if not user_token_content.exists():
+                err_data="refresh_token has expired"
+                logger.log_user_action(logg_user_id, login_method, False, ip_address, user_agent, err_data)
+
                 return self._getRespones({
                     'result_code': self.code_f_id_exist,
                     'message': f"{login_id} Login failed",
-                    'errors': "refresh_token has expired"
+                    'errors': err_data
                 })
 
             # 获取用户代理和 IP 地址
-            user_agent, ip_address = self.getUserAgent(request)
+
 
             # 生成旧的会话密钥
             old_session_key = AccountEvent.generate_seeison_key(
@@ -304,6 +331,9 @@ class AccessAuth(VerifyParm):
                 "token_type": token_data_new.token_type,
                 "expires_at": token_data_new.expires_at
             }
+            refresh_success="Token refresh success"
+            logger.log_user_action(logg_user_id, login_method,
+                                   True, ip_address, user_agent, refresh_success)
 
             return self._getSuccessRespones({
                 'result_code': self.success,
@@ -315,6 +345,8 @@ class AccessAuth(VerifyParm):
             })
 
         except Exception as e:
+            logger.log_user_action(logg_user_id, login_method, False, ip_address, user_agent, str(e))
+
             return self._getRespones({
                 'result_code': self.code_f_id_exist,
                 'message': f"{login_id} Login failed",
@@ -322,8 +354,8 @@ class AccessAuth(VerifyParm):
             })
 
     def accessTokenStatus(self,request):
-        login_id = request.data['login_id']
-        login_type = request.data['login_type']
+        logger = AccountEvent()
+        action="login"
         login_method = "token"
         required_fields = ['login_id', 'login_type']
         error_fields = self.verify_fields(request, required_fields)
@@ -338,6 +370,8 @@ class AccessAuth(VerifyParm):
                 'errors': err_data
             }
             return self._getRespones(result)
+        login_id = request.data['login_id']
+        login_type = request.data['login_type']
         if not self.verify_id_exist(login_id, login_type):
             err_data = login_id + ":don't  exist"
             result = {
@@ -355,14 +389,13 @@ class AccessAuth(VerifyParm):
                 'errors': err_data
             }
             return self._getRespones(result)
-
-
-
+        user_agent, ip_address = self.getUserAgent(request)
         try:
+
             token = auth_header.split(' ')[1]  # 提取Bearer后面的token
             # 获取当前用户的令牌信息
             user_profile = UserProfile.objects.filter(login_id=login_id, login_type=login_type)
-
+            logg_user_id=user_profile.first().user_id
             user_tokens = UserTokens.objects.filter(user_id=user_profile.first(), access_token=token,
                                                     is_active=True)
             if not user_tokens.exists():
@@ -372,9 +405,10 @@ class AccessAuth(VerifyParm):
                     'message': f"{login_id} Login failed",
                     'errors': err_data
                 }
+                logger.log_user_action(logg_user_id, login_method, False, ip_address, user_agent, err_data)
                 return self._getRespones(result)
 
-            user_agent, ip_address = self.getUserAgent(request)
+
             token_expires = user_tokens.first().expires_at
             local_time = localtime(token_expires)
             if local_time <= now():
@@ -384,6 +418,8 @@ class AccessAuth(VerifyParm):
                     'message': f"{login_id} Login failed",
                     'errors': err_data
                 }
+                logger.log_user_action(logg_user_id, login_method, False, ip_address, user_agent, err_data)
+
                 return self._getRespones(result)
 
             else:
@@ -411,6 +447,14 @@ class AccessAuth(VerifyParm):
                         'message': f"token Login update success",
                         'data': data
                     }
+                    message_success="token Login update success"
+                    logger.log_user_action(logg_user_id, login_method, True, ip_address, user_agent, message_success)
+                    devices_data = {
+                        "user_agent": user_agent,
+                        "ip_address": ip_address
+
+                    }
+                    logger.create_activity(logg_user_id,action,devices_data)
                     return self._getSuccessRespones(result)
                 status, session_data = AccountEvent.create_session(user_profile.first().user_id, token, user_agent, ip_address,
                                                            login_method)
@@ -423,6 +467,15 @@ class AccessAuth(VerifyParm):
                     'message': f"token Login create success",
                     'data': data
                 }
+                message_success="token Login create success"
+
+                logger.log_user_action(logg_user_id, login_method, True, ip_address, user_agent, message_success)
+                devices_data = {
+                    "user_agent": user_agent,
+                    "ip_address": ip_address
+
+                }
+                logger.create_activity(logg_user_id, action, devices_data)
                 return self._getSuccessRespones(result)
 
             # 标记所有令牌为无效
@@ -434,6 +487,10 @@ class AccessAuth(VerifyParm):
                 'message': f"token Login failed",
                 'errors': data
             }
+            user_profile = UserProfile.objects.filter(login_id=login_id, login_type=login_type)
+            logg_user_id = user_profile.first().user_id
+            logger.log_user_action(logg_user_id, login_method, False, ip_address, user_agent, data)
+
             return self._getRespones(result)
 
     def checkAccessToken(self, user_id, user_agent, ip_address):
