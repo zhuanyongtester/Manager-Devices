@@ -10,7 +10,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
 import apps.CustomManager.accountManger.comm as com
 from apps.CustomManager.form import UserRegistrationForm
-from apps.CustomManager.models import UserProfile
+from apps.CustomManager.models import UserProfile, UserTokens
 
 
 class VerifyParm(APIView):
@@ -180,3 +180,5 @@ class VerifyParm(APIView):
 
         if result:
             return self._success_response(result['result_code'], result['message'], result['data'])
+
+

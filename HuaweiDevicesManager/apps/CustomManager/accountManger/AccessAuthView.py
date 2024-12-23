@@ -92,8 +92,8 @@ class AccessAuth(VerifyParm):
             ip_address=ip_address,
             is_active=True
         )
-
-        if user_sessions.exists():
+        token_status=self.checkAccessToken(user_profile.user_id,user_agent,ip_address)
+        if user_sessions.exists() and not token_status:
             dataResult = user_profile.user_id + " had login the devices(" + user_agent + ")"
             result={
                 'result_code': self.code_f_id_exist,
@@ -435,5 +435,42 @@ class AccessAuth(VerifyParm):
                 'errors': data
             }
             return self._getRespones(result)
+
+    def checkAccessToken(self, user_id, user_agent, ip_address):
+        try:
+            # 查找匹配的用户会话
+            user_session = UserSessions.objects.filter(
+                Q(user_id=user_id) &
+                Q(user_agent=user_agent) &
+                Q(ip_address=ip_address)
+            ).first()
+
+            # 如果未找到会话，返回 True，表示需要重新登录
+            if not user_session:
+                return False
+
+            # 查找用户的所有令牌
+            user_tokens = UserTokens.objects.filter(user_id=user_id)
+
+            # 遍历用户的令牌
+            for user_token in user_tokens:
+                # 生成会话密钥进行比较
+                token_session_key = AccountEvent.generate_session_key(user_id, user_token, user_agent, ip_address)
+
+                # 检查会话密钥是否匹配
+                if user_session.session_key == token_session_key:
+                    # 检查令牌是否已过期
+                    if user_token.expires_at <= now():
+                        user_session.update(is_active=False)
+                        return True  # 令牌已过期，需要重新登录
+                    else:
+                        return False  # 令牌有效，不需要重新登录
+
+            # 如果没有找到匹配的令牌，返回 True
+            return False
+
+        except Exception as e:
+            # 记录异常（如果需要）
+            return False  # 出现异常，默认需要重新登录
 
 
