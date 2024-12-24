@@ -7,6 +7,10 @@ from django.utils.timezone import now
 class UserIdCounter(models.Model):
     counter_name = models.CharField(max_length=50, unique=True)
     current_value = models.PositiveIntegerField(default=1000000)  #
+    class Meta:
+        db_table = 't_user_id_counter'
+        verbose_name = "用户资料"
+
 # Create your models here.
 class UserProfile(models.Model):
     user_id = models.CharField(max_length=255, unique=True, primary_key=True,verbose_name="用户唯一标识符")
