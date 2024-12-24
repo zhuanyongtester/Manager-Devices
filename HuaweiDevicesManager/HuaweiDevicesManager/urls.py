@@ -24,4 +24,5 @@ urlpatterns = [
     re_path('^', include('apps.UserLogin.urls', namespace="UserLogin")),
     re_path('^auth/', include('apps.DevicesManager.urls', namespace="DevicesManager")),
     re_path('^api/', include('apps.CustomManager.urls', namespace="CustomManager")),
+    re_path('^store/', include('apps.StoresManager.urls', namespace="StoresManager")),
 ]
