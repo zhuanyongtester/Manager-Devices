@@ -1,3 +1,4 @@
+import hashlib
 import re
 import secrets
 
@@ -9,6 +10,7 @@ from rest_framework import status, response
 from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
 import apps.CustomManager.accountManger.comm as com
+from HuaweiDevicesManager import settings
 from apps.CustomManager.form import UserRegistrationForm
 from apps.CustomManager.models import UserProfile, UserTokens
 
@@ -22,8 +24,27 @@ class VerifyParm(APIView):
         self.code_f_id_exist = 2003
         self.code_f_id_other = 2004
         self.error_des = error_des
+        self.SUCCESS_201 = status.HTTP_201_CREATED
+        self.SUCCESS_200 = status.HTTP_200_OK
+        self.REGISTER_SUCCESS_MESSAGE="Register success"
+        self.REGISTER_FAILED_MESSAGE = "Register Failed"
+    def _getErrorRespones(self, result_code, message, err_data):
+        response_data = {
+            "statusCode": self.code_failed,
+            "resultCode": result_code,
+            "message": message,
+            "errors": err_data or {}
+        }
+        return response_data
 
-
+    def _getSuccessRespones(self, result_code, message, success_data):
+        response_data = {
+            "statusCode": self.SUCCESS_201,
+            "resultCode": result_code,
+            "message": message,
+            "data": success_data or {}
+        }
+        return response_data
 
     def _is_valid_field(self, data, field):
         value = data.get(field, None)
@@ -176,9 +197,34 @@ class VerifyParm(APIView):
         }
         return response.Response(response_data, status=status.HTTP_200_OK)
 
-    def _getSuccessRespones(self, result):
+    # def _getSuccessRespones(self, result):
+    #
+    #     if result:
+    #         return self._success_response(result['result_code'], result['message'], result['data'])
 
-        if result:
-            return self._success_response(result['result_code'], result['message'], result['data'])
+    def generate_id_token(self,user_data):
+        import datetime
+        print(user_data)
+        password=settings.SECRET_KEY
+        """
+        使用密码哈希生成密钥，并生成 id_token（JWT）。
+        """
+        # 使用 SHA256 哈希函数将密码哈希化（你也可以使用其他哈希算法）
+        hashed_password = hashlib.sha256(password.encode('utf-8')).hexdigest()
 
+        payload = {
+            'sub': user_data['user_id'],  # 用户唯一标识符
+            'name': user_data['name'],  # 用户名称
+            'gender': user_data['gender'],  # 用户性别
+            'age': user_data['age'],  # 用户年龄
+            'birthdate': user_data['birthday'],  # 用户生日
+            'language': user_data['language'],  # 用户语言
+            'login_id': user_data['login_id'],  # 登录ID
+            'login_type': user_data['login_type'],  # 登录类型
+            'iat': datetime.datetime.utcnow(),  # 签发时间
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1),  # 过期时间，1小时后
+        }
 
+        # 使用哈希后的密码作为密钥生成并返回 id_token
+        id_token = jwt.encode(payload, hashed_password, algorithm='HS256')
+        return id_token

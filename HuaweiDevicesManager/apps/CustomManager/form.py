@@ -19,52 +19,71 @@ class UserRegistrationForm(forms.Form):
 
     def clean_login_id(self):
         login_id = self.cleaned_data.get('login_id')
+        if isinstance(login_id, list):
+            login_id = ', '.join(login_id)  # 将列表转换为字符串
         if not login_id:
             raise ValidationError("login_id is required and cannot be empty")
         return login_id
     def clean_password(self):
         password = self.cleaned_data.get('password')
+        if isinstance(password, list):
+            password = ', '.join(password)  # 将列表转换为字符串
         if not password:
             raise ValidationError("password is required and cannot be empty")
         return password
     def clean_name(self):
         name = self.cleaned_data.get('name')
+        if isinstance(name, list):
+            name = ', '.join(name)  # 将列表转换为字符串
         if not name:
             raise ValidationError("Name is required and cannot be empty")
         return name
 
     def clean_gender(self):
         gender = self.cleaned_data.get('gender')
+        if isinstance(gender, list):
+            gender = ', '.join(gender)  # 将列表转换为字符串
         if gender not in ['male', 'female', 'other']:
             raise ValidationError("Please choose gender (male, female, or other)")
         return gender
 
     def clean_birthday(self):
         birthday = self.cleaned_data.get('birthday')
+        if isinstance(birthday, list):
+            birthday = ', '.join(birthday)  # 将列表转换为字符串
         if not self.validate_birthday(birthday):
             raise ValidationError("Invalid birthday format or date")
         return birthday
 
     def clean_location(self):
         location = self.cleaned_data.get('location')
+        if isinstance(location, list):
+            location = ', '.join(location)  # 将列表转换为字符串
         if not location.strip():
             raise ValidationError("Location is required and cannot be empty")
         return location
 
     def clean_age(self):
         age = self.cleaned_data.get('age')
+        if isinstance(age, list):
+            age = ', '.join(age)  # 将列表转换为字符串
         if age < 0:
             raise ValidationError("Age must be a positive integer")
         return age
 
     def clean_language(self):
         language = self.cleaned_data.get('language')
+        if isinstance(language, list):
+            language = ', '.join(language)  # 将列表转换为字符串
         if not language.strip():
             raise ValidationError("Language is required and cannot be empty")
         return language
 
     def clean_login_type(self):
         login_type = self.cleaned_data.get('login_type')
+
+        if isinstance(login_type, list):
+            login_type = ', '.join(login_type)  # 将列表转换为字符串
         if login_type not in ['email', 'phone']:
             raise ValidationError("Please choose login_type (email, phone)")
         return login_type

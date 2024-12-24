@@ -1,32 +1,168 @@
+import hashlib
+import re
+
+from django.contrib.auth.hashers import make_password
+from django.db.models import Q
+from django.utils import timezone
 from django.utils.timezone import now
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
+
 from .models import UserProfile, UserAuthLogs, UserSocial, UserInterests, UserTokens, UserSessions, UserEvent, \
     UserPreferences, UserActivity
 from apps.CustomManager.untils.mangertools import AccountUserManager
 # UserProfile Serializer
-class UserProfileSerializer(serializers.ModelSerializer):
+class UserProfileSerializer(serializers.Serializer):  # 使用 Serializer，而非 ModelSerializer
     password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
-    class Meta:
-        model = UserProfile
-        fields = [
-            'user_id',
-            'name', 'gender', 'age', 'birthday', 'location', 'profession', 'language',
-            'login_id', 'login_type', 'password', 'created_at', 'updated_at'
-        ]
-        extra_kwargs = {
-            'password': {'write_only': True, 'required': True},  # 加密保存密码
-            'user_id': {'read_only': True},  # 不允许前端传递
+    name = serializers.CharField(max_length=100)
+    gender = serializers.ChoiceField(choices=['male', 'female'])
+    age = serializers.IntegerField()
+    birthday = serializers.DateField()
+    location = serializers.CharField(max_length=255)
+    profession = serializers.CharField(max_length=255)
+    language = serializers.ChoiceField(choices=['en', 'zh', 'es', 'fr'])
+    login_id = serializers.CharField(max_length=255)
+    login_type = serializers.ChoiceField(choices=['email', 'phone'])
+    user_id = serializers.IntegerField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
 
-        }
+    def validate_name(self, value):
+        print(f"Validating name: {value}")
+        if not value:
+            raise ValidationError("Name cannot be empty.")
+        if len(value) > 100:
+            raise ValidationError("Name cannot exceed 100 characters.")
+        return value
 
+    def validate_age(self, value):
+        if value < 0:
+            raise ValidationError("Age cannot be negative.")
+        return value
 
-        def create(self, validated_data):
-            password = validated_data.pop('password')
-            user = UserProfile.objects.create(**validated_data)
-            user.set_password(password)  # 使用 set_password 对密码加密
-            user.save()
-            return user
+    def validate_birthday(self, value):
+        if value > timezone.now().date():
+            raise ValidationError("Birthday cannot be in the future.")
+        return value
 
+    def validate_gender(self, value):
+        valid_genders = ['male', 'female']
+        if value not in valid_genders:
+            raise ValidationError(f"Gender must be one of {', '.join(valid_genders)}.")
+        return value
+
+    def validate_location(self, value):
+        if len(value) > 255:
+            raise ValidationError("Location cannot exceed 255 characters.")
+        return value
+
+    def validate_language(self, value):
+        valid_languages = ['en', 'zh', 'es', 'fr']
+        if value not in valid_languages:
+            raise ValidationError(f"Language must be one of {', '.join(valid_languages)}.")
+        return value
+
+    def validate_login_id(self, value):
+        login_type = self.initial_data.get('login_type')  # 获取当前提交的 login_type
+        if login_type == 'email':
+            # 如果是邮箱，检查格式是否正确
+            if not re.match(r"[^@]+@[^@]+\.[^@]+", value):
+                raise ValidationError("Invalid email address.")
+        elif login_type == 'phone':
+            # 如果是手机号，检查是否为数字
+            if not value.isdigit():
+                raise ValidationError("Login ID must be a valid phone number (digits only).")
+        else:
+            raise ValidationError("Invalid login type.")
+
+        return value
+
+    def validate_password(self, value):
+        if len(value) < 8:
+            raise ValidationError("Password must be at least 8 characters long.")
+        return value
+
+    def validate(self, data):
+        # 全局验证：确保 login_type 与 login_id 配对
+        login_type = data.get('login_type')
+        login_id = data.get('login_id')
+
+        if login_type == 'email' and '@' not in login_id:
+            raise ValidationError({"login_id": "If login type is email, a valid email must be provided."})
+
+        if login_type == 'phone' and not login_id.isdigit():
+            raise ValidationError({"login_id": "If login type is phone, login_id must be numeric."})
+        if UserProfile.objects.filter(
+            Q(login_id=login_id) & Q(login_type=login_type)
+        ).exists():
+            raise ValidationError({f"login_id": "the "+login_type+" had exists."})
+        return data
+
+    def create(self, validated_data):
+        if 'password' not in validated_data:
+            raise ValidationError({"password": "Password is required."})
+
+        password = validated_data.pop('password')  # 从 validated_data 中提取密码
+        # 手动创建 UserProfile 并加密密码
+        user = UserProfile(**validated_data)  # 创建 UserProfile 实例
+        user.password = self.genrate_new_password(password)
+        user.save()  # 手动保存到数据库
+        return user
+    def genrate_new_password(self,password):
+        hashed_password = hashlib.md5(password.encode('utf-8')).hexdigest()
+        return hashed_password
+class UserLoginSerializer(serializers.Serializer):
+    password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
+    login_id = serializers.CharField(max_length=255)
+    login_type = serializers.ChoiceField(choices=['email', 'phone'])
+    def validate_login_id(self, value):
+        login_type = self.initial_data.get('login_type')  # 获取当前提交的 login_type
+        if login_type == 'email':
+            # 如果是邮箱，检查格式是否正确
+            if not re.match(r"[^@]+@[^@]+\.[^@]+", value):
+                raise ValidationError("Invalid email address.")
+        elif login_type == 'phone':
+            # 如果是手机号，检查是否为数字
+            if not value.isdigit():
+                raise ValidationError("Login ID must be a valid phone number (digits only).")
+        else:
+            raise ValidationError("Invalid login type.")
+
+        return value
+    def validate(self, data):
+        # 全局验证：确保 login_type 与 login_id 配对
+        login_type = data.get('login_type')
+        login_id = data.get('login_id')
+        password=data.get('password')
+        new_password=hashlib.md5(password.encode('utf-8')).hexdigest()
+        print(new_password)
+        if login_type == 'email' and '@' not in login_id:
+            raise ValidationError({"login_id": "If login type is email, a valid email must be provided."})
+
+        if login_type == 'phone' and not login_id.isdigit():
+            raise ValidationError({"login_id": "If login type is phone, login_id must be numeric."})
+        try:
+            user = UserProfile.objects.get(
+                Q(login_id=login_id) & Q(login_type=login_type)
+            )
+        except UserProfile.DoesNotExist:
+            raise ValidationError({f"login_id": f"The {login_type} doesn't exist."})
+
+        # 使用 check_password 来验证密码
+        if  user.password!=new_password:
+            raise ValidationError({f"password": f"The {login_type} password doesn't match."})
+        return data
+
+    def create(self, validated_data):
+        if 'password' not in validated_data:
+            raise ValidationError({"password": "Password is required."})
+
+        password = validated_data.pop('password')  # 从 validated_data 中提取密码
+        # 手动创建 UserProfile 并加密密码
+        user = UserProfile(**validated_data)  # 创建 UserProfile 实例
+        user.password = make_password(password)
+        user.save()  # 手动保存到数据库
+        return user
 # UserAuthLogs Serializer
 class UserAuthLogsSerializer(serializers.ModelSerializer):
     class Meta:

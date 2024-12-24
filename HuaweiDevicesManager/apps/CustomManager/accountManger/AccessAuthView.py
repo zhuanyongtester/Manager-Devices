@@ -20,43 +20,39 @@ from apps.CustomManager.accountManger.VerifyParm import VerifyParm
 from apps.CustomManager.form import UserRegistrationForm
 from apps.CustomManager.models import UserProfile, UserTokens, UserSessions
 from apps.CustomManager.accountManger.AccountEventView import AccountEvent
+from apps.CustomManager.serializers import UserProfileSerializer, UserLoginSerializer
+
 
 class AccessAuth(VerifyParm):
-    def __init__(self,error_des=None):
-        self.code_failed = status.HTTP_400_BAD_REQUEST
-        self.success = 2000
-        self.code_f_fields_null=2001
-        self.code_f_id=2002
-        self.code_f_id_exist=2003
-        self.code_f_id_other = 2004
-        self.error_des = error_des
 
 
 
     def registerStatus(self, request):
-        # 必须字段检查
 
-        form = UserRegistrationForm(request.data)
-        if not form.is_valid():
-            result = {
-                'result_code': self.code_f_id_other,
-                'message': f"Invalid input",
-                'errors': form.errors
+        serializer = UserProfileSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()  #
+            id_token=self.generate_id_token(serializer.data)
+            data={
+                'id_token': id_token,
+                'user_id': serializer.data['user_id'],
+                'name': serializer.data['name']
             }
-            return self._getRespones(result)
-        login_id = request.data.get('login_id')
-        login_type = request.data.get('login_type')
-        result = self.verify_account_value(login_id, login_type)
-        if result:
-            return self._getRespones(result)
-        result = self.verify_id_exist(login_id, login_type)
-        if result:
-            return self._getRespones(result)
-
+            return self._getSuccessRespones(self.success,self.REGISTER_SUCCESS_MESSAGE,
+                                            data)
+        return self._getErrorRespones(self.code_failed,self.REGISTER_FAILED_MESSAGE,
+                                      serializer.errors)
 
     def loginStatus(self,request):
         # 必须字段检查
+        print(request.data)
         logger = AccountEvent()
+        serializer = UserLoginSerializer(data=request.data)
+        if serializer.is_valid():
+            print(serializer.data)
+
+            serializer.save()  #
+        print(serializer.errors)
         required_fields = ['login_id', 'password','login_type']
         error_fields = self.verify_fields(request, required_fields)
         action = 'login'

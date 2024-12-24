@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'apps.DevicesManager',
     'apps.UserLogin',
     'apps.CustomManager',
+    'apps.StoresManager',
 
 ]
 
@@ -85,7 +86,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'db_custom_manager',
         'USER': 'root',
-        'PASSWORD': 'Zwx249198',
+        'PASSWORD': '454659',
         'HOST': '127.0.0.1',
         'PORT': 3306,
     }
@@ -138,3 +139,4 @@ JAVA_PATH=os.path.join(BASE_DIR, 'apps').replace("\\", "/")
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+# AUTH_USER_MODEL = 'CustomManager.CustomUser'  # 确认这里的模型是你的自定义用户模型
