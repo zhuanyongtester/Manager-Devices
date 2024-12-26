@@ -50,31 +50,17 @@ class UserLoginView(AccessAuth):
         # if not csrf_token or not self.validate_csrf_token(csrf_token):
         #     return Response({"error": "CSRF token missing or invalid"}, status=status.HTTP_403_FORBIDDEN)
         result = self.loginStatus(request)
+        print(result['statusCode'])
+        if result and result['statusCode']==201:
+            data=result['data']['data']
+            print(data)
 
-        # 检查 registerStatus 的返回值
-        if result.status_code == 200:  # 如果返回了错误响应
-            serializer = UserTokensSerializer(data=result.data['data'])
+            serializer = UserTokensSerializer(data=data)
             if serializer.is_valid():
-                serializer.save()  # 保存用户数据
-                successData = {
-                    "statusCode": status.HTTP_201_CREATED,
-                    "resultCode": 2000,
-                    "message": "User Login successfully",
-                    "data": serializer.data
-                }
+                serializer.save()
+        return Response(result)
 
-                return Response(successData, status=status.HTTP_201_CREATED)
-        else:
-            # 如果验证通过，进行数据保存
-            return result
 
-        # 如果序列化失败，返回错误
-        return Response({
-            "statusCode": status.HTTP_400_BAD_REQUEST,
-            "resultCode": 1001,
-            "message": "Invalid data",
-            "errors": serializer.errors
-        }, status=status.HTTP_400_BAD_REQUEST)
 
 class UserLogoutView(AccessAuth):
     permission_classes = [AllowAny]  # 允许任何用户访问该视图

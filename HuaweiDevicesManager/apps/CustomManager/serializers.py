@@ -8,6 +8,7 @@ from django.utils.timezone import now
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+
 from .models import UserProfile, UserAuthLogs, UserSocial, UserInterests, UserTokens, UserSessions, UserEvent, \
     UserPreferences, UserActivity
 from apps.CustomManager.untils.mangertools import AccountUserManager
@@ -135,7 +136,7 @@ class UserLoginSerializer(serializers.Serializer):
         login_id = data.get('login_id')
         password=data.get('password')
         new_password=hashlib.md5(password.encode('utf-8')).hexdigest()
-        print(new_password)
+
         if login_type == 'email' and '@' not in login_id:
             raise ValidationError({"login_id": "If login type is email, a valid email must be provided."})
 
@@ -151,18 +152,80 @@ class UserLoginSerializer(serializers.Serializer):
         # 使用 check_password 来验证密码
         if  user.password!=new_password:
             raise ValidationError({f"password": f"The {login_type} password doesn't match."})
+        data["user_id"]=user.user_id
+        print(data)
         return data
 
-    def create(self, validated_data):
-        if 'password' not in validated_data:
-            raise ValidationError({"password": "Password is required."})
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        # 将 `user_id` 动态添加到返回数据中
+        if hasattr(self, 'validated_data') and 'user_id' in self.validated_data:
+            representation['user_id'] = self.validated_data['user_id']
+        return representation
+class UserLogoutSerializer(serializers.Serializer):
+    login_id = serializers.CharField(required=True, allow_blank=False)
+    login_type = serializers.ChoiceField(choices=['email', 'phone'], required=True)
 
-        password = validated_data.pop('password')  # 从 validated_data 中提取密码
-        # 手动创建 UserProfile 并加密密码
-        user = UserProfile(**validated_data)  # 创建 UserProfile 实例
-        user.password = make_password(password)
-        user.save()  # 手动保存到数据库
-        return user
+    def validate_login_id(self, value):
+        """根据 login_type 验证 login_id 的值。"""
+        login_type = self.initial_data.get('login_type')  # 从请求数据中获取 login_type
+        if login_type == 'email' and ('@' not in value or '.' not in value):
+            raise serializers.ValidationError("The login_id must be a valid email.")
+        if login_type == 'phone' and not value.isdigit():
+            raise serializers.ValidationError("The login_id must be a valid phone number.")
+        return value
+
+    def validate(self, attrs):
+        """全局验证，确保 header 中有 Authorization。"""
+        authorization = self.context.get('authorization')  # 从 context 中获取 Authorization
+        user_agent = self.context.get('user_agent')
+        ip_address = self.context.get('ip_address')
+        login_type = attrs.get('login_type')
+        login_id = attrs.get('login_id')
+        if not authorization:
+            raise serializers.ValidationError({"authorization": "Authorization header is missing."})
+        if not authorization.startswith("Bearer "):  # 验证格式
+            raise serializers.ValidationError({"authorization": "Invalid authorization header format. Must start with 'Bearer '."})
+        try:
+            user = UserProfile.objects.get(
+                Q(login_id=login_id) & Q(login_type=login_type)
+            )
+            getAccessToken = authorization.split(' ')[1]
+
+            user_token_content = UserTokens.objects.get(
+                Q(user_id=user) & Q(access_token=getAccessToken) & Q(is_active=True)
+            )
+            if user_token_content.expires_at < now():
+                raise ValidationError({f"access_token already Expired."})
+            session_key = self.generate_seeison_key(user.user_id,
+                                                            getAccessToken, user_agent, ip_address)
+            user_sessions = UserSessions.objects.get(
+                Q(session_key=session_key) &Q(is_active=True) )
+            user_token_content.is_active = False
+            user_sessions.is_active = False
+            user_token_content.save()
+            user_sessions.save()
+            print("logout success ")
+        except UserProfile.DoesNotExist:
+            raise ValidationError({f"login_id": f"The {login_type} doesn't exist."})
+        except UserTokens.DoesNotExist:
+            raise ValidationError({f"access_token already Expired."})
+        except UserSessions.DoesNotExist:
+            raise ValidationError({f"session_key already Expired."})
+
+        return attrs
+
+    def generate_seeison_key(self, user_id, access_token, user_agent, ip_address):
+        user_id_str = str(user_id)
+        user_agent_str = user_agent or "unknown_device"
+        ip_address_str = ip_address or "unknown_ip"
+        access_token_str = access_token or "unknown_token"
+
+        # Concatenate data for session key
+        raw_data = f"{user_id_str}:{user_agent_str}:{ip_address_str}:{access_token_str}"
+        # Generate SHA-256 hash
+        session_key = hashlib.sha256(raw_data.encode('utf-8')).hexdigest()
+        return session_key
 # UserAuthLogs Serializer
 class UserAuthLogsSerializer(serializers.ModelSerializer):
     class Meta:

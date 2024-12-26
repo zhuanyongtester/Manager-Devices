@@ -56,14 +56,14 @@ class BaseStore(VerifyParm):
             store.update_average_rating()  # 更新评分
             serializer.save()  # 保存有效的数据
 
-            return self._getSuccessRespones(self.success_1000, self.SUCCESS_CREATE, serializer.data)
+            return self._getSuccessRespones(self.success_1000, self.SUCCESS_CREATE_REVIEW, serializer.data)
         return self._getErrorRespones(self.FAILED_1002, self.FAILED_CREATE, serializer.errors)
 
     def store_tag_status(self,request):
         serializer = StoreTagSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()  # 保存有效的数据
-            return self._getSuccessRespones(self.success_1000, self.SUCCESS_CREATE, serializer.data)
+            return self._getSuccessRespones(self.success_1000, self.SUCCESS_CREATE_REVIEW, serializer.data)
         return self._getErrorRespones(self.FAILED_1002, self.FAILED_CREATE, serializer.errors)
 
 

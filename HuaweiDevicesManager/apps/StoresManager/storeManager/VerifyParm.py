@@ -16,6 +16,7 @@ class VerifyParm(APIView):
         self.FAILED_1004 = 1004
         self.FAILED_CREATE = "Create Store Failed"
         self.SUCCESS_CREATE="Store Create Success"
+        self.SUCCESS_CREATE_REVIEW = "Store review Success"
     def _getErrorRespones(self, result_code,message,err_data):
             response_data = {
                 "statusCode": self.FAILED_400,

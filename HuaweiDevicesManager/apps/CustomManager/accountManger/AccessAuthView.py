@@ -20,7 +20,7 @@ from apps.CustomManager.accountManger.VerifyParm import VerifyParm
 from apps.CustomManager.form import UserRegistrationForm
 from apps.CustomManager.models import UserProfile, UserTokens, UserSessions
 from apps.CustomManager.accountManger.AccountEventView import AccountEvent
-from apps.CustomManager.serializers import UserProfileSerializer, UserLoginSerializer
+from apps.CustomManager.serializers import UserProfileSerializer, UserLoginSerializer, UserLogoutSerializer
 
 
 class AccessAuth(VerifyParm):
@@ -45,100 +45,88 @@ class AccessAuth(VerifyParm):
 
     def loginStatus(self,request):
         # 必须字段检查
-        print(request.data)
+        action = 'login'
         logger = AccountEvent()
         serializer = UserLoginSerializer(data=request.data)
         if serializer.is_valid():
-            print(serializer.data)
-
-            serializer.save()  #
-        print(serializer.errors)
-        required_fields = ['login_id', 'password','login_type']
-        error_fields = self.verify_fields(request, required_fields)
-        action = 'login'
-        if error_fields:
-
-            return self._getRespones(error_fields)
-        # 继续执行其他逻辑
-        # 登录类型检查
-        login_id = request.data['login_id']
-        login_type = request.data['login_type']
-
-        error_id_value = self.verify_account_value(login_id,login_type)
-        if error_id_value:
-            return self._getRespones(error_id_value)
-
-        if not self.verify_id_exist(login_id,login_type):
-            result = {
-                'result_code': self.code_f_id_exist,
-                'message': f"{login_id} Login failed",
-                'errors': {"login_id": f"{login_id} not exists"}
-            }
-            return self._getRespones(result)
-        password = request.data['password']
-        data,user_profile=self.verify_login_status(login_id,password,login_type)
-        if  data:
-
-            return  self._getRespones(data)
-
-        user_agent, ip_address = self.getUserAgent(request)
-        # session_key=AccountEvent.generate_seeison_key(user_profile.user_id,access_token,user_agent,ip_address)
-        user_sessions = UserSessions.objects.filter(
-            user_id=user_profile.user_id,
-            user_agent=user_agent,
-            ip_address=ip_address,
-            is_active=True
-        )
-        token_status=self.checkAccessToken(user_profile.user_id,user_agent,ip_address)
-        if user_sessions.exists() and not token_status:
-            dataResult = user_profile.user_id + " had login the devices(" + user_agent + ")"
-            result={
-                'result_code': self.code_f_id_exist,
-                'message': f"{login_id} Login failed",
-                'errors': dataResult
-            }
-
-            logger.log_user_action(user_profile.user_id, action,False, ip_address, user_agent, dataResult)
-            return self._getRespones(result)
-        access_token, expiration_time = self.generate_access_token(login_id, password)
-        refresh_token = self.generate_refresh_token()
-        sessionStatus, sessionData = AccountEvent.create_session(user_profile.user_id, access_token, user_agent,
+            login_id=serializer.data['login_id']
+            login_type = serializer.data['login_type']
+            user_id = serializer.data['user_id']
+            try:
+                user = UserProfile.objects.get(
+                    Q(login_id=login_id) & Q(login_type=login_type)  & Q(user_id=user_id)
+                )
+                user_agent, ip_address = self.getUserAgent(request)
+                user_sessions = UserSessions.objects.filter(
+                    user_id=user_id,
+                    user_agent=user_agent,
+                    ip_address=ip_address,
+                    is_active=True
+                )
+                token_status = self.checkAccessToken(user_id, user_agent, ip_address)
+                if user_sessions.exists() and not token_status:
+                    dataResult = user_id + " had login the devices(" + user_agent + ")"
+                    logger.log_user_action(user_id, action, False, ip_address, user_agent, dataResult)
+                    return self._getErrorRespones(self.code_f_id_exist, self.LOGIN_FAILED_MESSAGE, dataResult)
+                access_token, expiration_time = self.generate_access_token(login_id, user.password)
+                refresh_token = self.generate_refresh_token()
+                sessionStatus, sessionData = AccountEvent.create_session(user_id, access_token, user_agent,
                                                                  ip_address)
-        if not sessionStatus:
-            result = {
-                'result_code': self.code_f_id_exist,
-                'message': f"{login_id} Login failed",
-                'errors': sessionData
-            }
-            logger.log_user_action(user_profile.user_id, action,False, ip_address, user_agent, sessionData)
-            return self._getRespones(result)
-        data = {
-            "user_id": user_profile.user_id,
-            "access_token": access_token,
-            # 60分钟的tokendata = {str} 'Traceback (most recent call last):\n  File "D:\\fatuodownload\\AutoUpgradeApp\\venv\\Lib\\site-packages\\rest_framework\\fields.py", line 437, in get_attribute\n    return get_attribute(instance, self.source_attrs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^... View
-            "refresh_token": refresh_token,  # 刷新时间，长期有效，除非被注销
-            "token_type": "Bear",  # token类型
-            "expires_at": expiration_time,  # 60分钟过期时间
+                if not sessionStatus:
+                    logger.log_user_action(user_id, action, False, ip_address, user_agent, sessionData)
+                    return self._getErrorRespones(self.code_f_id_exist, self.LOGIN_FAILED_MESSAGE, sessionData)
+                data = {
+                    "user_id": user_id,
+                    "access_token": access_token,
+                    # 60分钟的tokendata = {str} 'Traceback (most recent call last):\n  File "D:\\fatuodownload\\AutoUpgradeApp\\venv\\Lib\\site-packages\\rest_framework\\fields.py", line 437, in get_attribute\n    return get_attribute(instance, self.source_attrs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^... View
+                    "refresh_token": refresh_token,  # 刷新时间，长期有效，除非被注销
+                    "token_type": "Bear",  # token类型
+                    "expires_at": expiration_time,  # 60分钟过期时间
 
-        }
-        result = {
-            'result_code': self.success,
-            'message': f"{login_id} Login success",
-            'data': data
-        }
-        devices_data = {
-            "user_agent": user_agent,
-            "ip_address": ip_address
+                }
 
-        }
-        logger.log_user_action(user_profile.user_id,action,True,ip_address,user_agent,data)
-        logger.create_activity(user_profile.user_id, action, devices_data)
-        return self._getSuccessRespones(result)
+                result = {
+                    'result_code': self.success,
+                    'message': f"{login_id} Login success",
+                    'data': data
+                }
+                devices_data = {
+                    "user_agent": user_agent,
+                    "ip_address": ip_address
+
+                }
+                logger.log_user_action(user_id, action, True, ip_address, user_agent, data)
+                logger.create_activity(user_id, action, devices_data)
+                return self._getSuccessRespones(self.success,self.LOGIN_SUCCESS_MESSAGE,result)
+            except UserProfile.DoesNotExist:
+                err_data={f"login_id": f"The {login_type} doesn't exist."}
+                return self._getErrorRespones(self.code_f_id_exist,self.LOGIN_FAILED_MESSAGE,err_data)
+        else:
+            return self._getErrorRespones(self.code_f_id_exist, self.LOGIN_FAILED_MESSAGE, serializer.errors)
+
+
+
+
 
 
     def logoutStatus(self, request):
         logger = AccountEvent()
         action="logout"
+        authorization = request.headers.get('Authorization', None)
+        user_agent, ip_address = self.getUserAgent(request)
+
+        # 初始化序列化器，并将 authorization 传递到 context 中
+        serializer = UserLogoutSerializer(data=request.data, context={
+            'authorization': authorization,
+            'user_agent':user_agent,
+            'ip_address':ip_address
+        })
+
+        if serializer.is_valid():
+            print(serializer.data)
+            print(authorization)
+        print(serializer.errors)
+
         required_fields = ['login_id', 'login_type']
         error_fields = self.verify_fields(request, required_fields)
         if error_fields:

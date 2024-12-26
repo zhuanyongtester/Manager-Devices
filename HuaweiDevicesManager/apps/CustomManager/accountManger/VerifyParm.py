@@ -28,6 +28,9 @@ class VerifyParm(APIView):
         self.SUCCESS_200 = status.HTTP_200_OK
         self.REGISTER_SUCCESS_MESSAGE="Register success"
         self.REGISTER_FAILED_MESSAGE = "Register Failed"
+        self.LOGIN_FAILED_MESSAGE="Login Failed"
+        self.LOGIN_SUCCESS_MESSAGE = "Login Success"
+
     def _getErrorRespones(self, result_code, message, err_data):
         response_data = {
             "statusCode": self.code_failed,
@@ -197,10 +200,6 @@ class VerifyParm(APIView):
         }
         return response.Response(response_data, status=status.HTTP_200_OK)
 
-    # def _getSuccessRespones(self, result):
-    #
-    #     if result:
-    #         return self._success_response(result['result_code'], result['message'], result['data'])
 
     def generate_id_token(self,user_data):
         import datetime
