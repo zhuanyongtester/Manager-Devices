@@ -1,3 +1,4 @@
+import json
 import re
 import secrets
 from datetime import datetime
@@ -6,6 +7,7 @@ from urllib import request
 
 from django.conf import settings
 from django.db.models import Q
+from django.forms import model_to_dict
 from django.utils.timezone import localtime
 import jwt
 from django.utils import timezone
@@ -13,14 +15,13 @@ from datetime import timedelta
 import apps.CustomManager.accountManger.comm as com
 from rest_framework import status, response
 from django.utils.timezone import now
-from rest_framework.views import APIView
-
-from apps.CustomManager import views
+import datetime
 from apps.CustomManager.accountManger.VerifyParm import VerifyParm
 from apps.CustomManager.form import UserRegistrationForm
 from apps.CustomManager.models import UserProfile, UserTokens, UserSessions
 from apps.CustomManager.accountManger.AccountEventView import AccountEvent
-from apps.CustomManager.serializers import UserProfileSerializer, UserLoginSerializer, UserLogoutSerializer
+from apps.CustomManager.serializers import UserProfileSerializer, UserLoginSerializer, UserLogoutSerializer, \
+    refreshTokenSerializer
 
 
 class AccessAuth(VerifyParm):
@@ -56,6 +57,15 @@ class AccessAuth(VerifyParm):
                 user = UserProfile.objects.get(
                     Q(login_id=login_id) & Q(login_type=login_type)  & Q(user_id=user_id)
                 )
+                # 将 UserProfile 实例转换为字典
+                user_dict = model_to_dict(user)
+                user_dict['birthday'] = user_dict['birthday'].isoformat() if isinstance(user_dict['birthday'], (
+                datetime.date, datetime.datetime)) else user_dict['birthday']
+
+                user_data=self.generate_id_token(user_dict)
+                # 现在 user_dict 是一个字典，你可以打印它或者返回它
+
+
                 user_agent, ip_address = self.getUserAgent(request)
                 user_sessions = UserSessions.objects.filter(
                     user_id=user_id,
@@ -68,7 +78,7 @@ class AccessAuth(VerifyParm):
                     dataResult = user_id + " had login the devices(" + user_agent + ")"
                     logger.log_user_action(user_id, action, False, ip_address, user_agent, dataResult)
                     return self._getErrorRespones(self.code_f_id_exist, self.LOGIN_FAILED_MESSAGE, dataResult)
-                access_token, expiration_time = self.generate_access_token(login_id, user.password)
+                access_token, expiration_time = self.generate_access_token(login_id, user.password,user_agent)
                 refresh_token = self.generate_refresh_token()
                 sessionStatus, sessionData = AccountEvent.create_session(user_id, access_token, user_agent,
                                                                  ip_address)
@@ -78,8 +88,10 @@ class AccessAuth(VerifyParm):
                 data = {
                     "user_id": user_id,
                     "access_token": access_token,
+
                     # 60分钟的tokendata = {str} 'Traceback (most recent call last):\n  File "D:\\fatuodownload\\AutoUpgradeApp\\venv\\Lib\\site-packages\\rest_framework\\fields.py", line 437, in get_attribute\n    return get_attribute(instance, self.source_attrs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^... View
                     "refresh_token": refresh_token,  # 刷新时间，长期有效，除非被注销
+                    "id_token":user_data,
                     "token_type": "Bear",  # token类型
                     "expires_at": expiration_time,  # 60分钟过期时间
 
@@ -105,10 +117,6 @@ class AccessAuth(VerifyParm):
             return self._getErrorRespones(self.code_f_id_exist, self.LOGIN_FAILED_MESSAGE, serializer.errors)
 
 
-
-
-
-
     def logoutStatus(self, request):
         logger = AccountEvent()
         action="logout"
@@ -123,219 +131,196 @@ class AccessAuth(VerifyParm):
         })
 
         if serializer.is_valid():
+            print("logout")
             print(serializer.data)
-            print(authorization)
+            serializer.data['user_agent']=user_agent
+            serializer.data['ip_address']=ip_address
+            user_id=serializer.data['user_id']
+
+
+            logger.log_user_action(user_id, action, True, ip_address, user_agent, self.LOGOUT_SUCCESS_MESSAGE)
+            logger.create_activity(user_id,action,serializer.data)
+            return self._getSuccessRespones(self.success,self.LOGOUT_SUCCESS_MESSAGE,serializer.data)
         print(serializer.errors)
-
-        required_fields = ['login_id', 'login_type']
-        error_fields = self.verify_fields(request, required_fields)
-        if error_fields:
-            return self._getRespones(error_fields)
-        login_id = request.data['login_id']
-        login_type = request.data['login_type']
-        error_id_value = self.verify_account_value(login_id, login_type)
-        if error_id_value:
-            return self._getRespones(error_id_value)
-
-        auth_header = request.headers.get('Authorization')
-        if not auth_header or not auth_header.startswith('Bearer '):
-            err_data={"access_token": "missing access token."}
-            result={
-                'result_code': self.code_f_id,
-                'message': f"Invalid access token",
-                'errors': err_data
-            }
-            return self._getRespones(result)
-        if not self.verify_id_exist(login_id,login_type):
-            err_data = login_id + ":don't  exist"
-            result = {
-                'result_code': self.code_f_id_exist,
-                'message': f"{login_id} Login failed",
-                'errors': err_data
-            }
-
-            return self._getRespones(result)
-        user_agent, ip_address = self.getUserAgent(request)
-        user_profile = UserProfile.objects.filter(login_id=login_id, login_type=login_type)
-        if not user_profile.exists():
-            err_data = login_id + ":don't  exist"
-            result = {
-                'result_code': self.code_f_id_exist,
-                'message': f"{login_id} Login failed",
-                'errors': err_data
-            }
-            logger.log_user_action(user_profile.user_id, action, False, ip_address, user_agent, err_data)
-            return self._getRespones(result)
-        token = auth_header.split(' ')[1]
-
-        try:
-            # 获取当前用户的令牌信息
-            user_profile = UserProfile.objects.filter(login_id=login_id, login_type=login_type).first()
-            user_token_content = UserTokens.objects.filter(user_id=user_profile, access_token=token, is_active=True)
-            session_key = AccountEvent.generate_seeison_key(user_profile.user_id,
-                                                            token, user_agent, ip_address)
-            user_sessions = UserSessions.objects.filter(session_key=session_key,is_active=True)
-            # 标记所有令牌为无效
-            if user_token_content.exists() and user_sessions.exists():
-                user_token_content.update(is_active=False)
-                user_sessions.update(is_active=False)
-                data={
-                    "user_agent":user_agent,
-                    "ip_address":ip_address
-
-                }
-                result = {
-                    'result_code': self.success,
-                    'message': f"{login_id} logout success",
-                    'data': data
-                }
-                message=f"{login_id} logout success"
-                logger.log_user_action(user_profile.user_id, action, True, ip_address, user_agent, message)
-                logger.create_activity(user_profile.user_id,action,data)
-
-                return self._getSuccessRespones(result)
-            else:
-                data = "access_token had Expired"
-                result = {
-                    'result_code': self.code_f_id_other,
-                    'message': f"{login_id} logout failed",
-                    'errors': data
-                }
-                logger.log_user_action(user_profile.user_id, action, False, ip_address, user_agent, data)
-
-                return self._getRespones(result)
-        except Exception as e:
-
-            data = str(e)
-            result = {
-                'result_code': self.code_f_id_other,
-                'message': f"{login_id} logout failed",
-                'errors': data
-            }
-            logger.log_user_action(user_profile.user_id, action, False, ip_address, user_agent, data)
-            return self._getRespones(result)
-
+        login_id = request.headers.get('login_id')
+        login_type = request.headers.get('login_type')
+        user_id=self.verify_logout_exists(login_id,login_type)
+        if user_id:
+            logger.log_user_action(user_id, action, False, ip_address, user_agent, serializer.errors)
+        return self._getErrorRespones(self.code_failed,self.LOGOUT_FAILED_MESSAGE,serializer.errors)
     def refreshTokenStatus(self, request):
         logger = AccountEvent()
-
-        login_method = "refresh"
-        required_fields = ['login_id', 'refresh_token', 'login_type']
-        error_fields = self.verify_fields(request, required_fields)
-        if error_fields:
-            return self._getRespones(error_fields)
-
-        login_id = request.data['login_id']
-        login_type = request.data['login_type']
-        refresh_token = request.data['refresh_token']
-
-        # 验证账号值
-        error_id_value = self.verify_account_value(login_id, login_type)
-        if error_id_value:
-            return self._getRespones(error_id_value)
-
-        # 验证 Authorization header
         auth_header = request.headers.get('Authorization')
-        if not auth_header or auth_header != "refresh_token":
-            return self._getRespones({
-                'result_code': self.code_f_id,
-                'message': "Invalid access token",
-                'errors': {"Authorization": "refresh_token type missing."}
-            })
+        login_method = "refresh"
         user_agent, ip_address = self.getUserAgent(request)
-        # 验证用户是否存在
-        if not self.verify_id_exist(login_id, login_type):
-            return self._getRespones({
-                'result_code': self.code_f_id_exist,
-                'message': f"{login_id} Login failed",
-                'errors': f"{login_id}: don't exist"
-            })
+        serializer = refreshTokenSerializer(data=request.data,context={
+            'authorization': auth_header})
+        print("refresh start------------")
+        if serializer.is_valid():
+            user_id=serializer.data['user_id']
+            access_token=serializer.data['access_token']
+            login_id = serializer.data['login_id']
+            password = serializer.data['password']
+            try:
+                old_session_key = AccountEvent.generate_seeison_key(
+                    user_id, access_token, user_agent, ip_address
+                )
+                new_access_token, expiration_time = self.generate_access_token(
+                    login_id, password, user_agent
+                )
+                user_token_content = UserTokens.objects.get(
+                    user_id=user_id, access_token=access_token, is_active=True
+                )
+                user_token_content.access_token=new_access_token
+                user_token_content.expires_at=expiration_time
+                user_token_content.save()
 
-        user_profile = UserProfile.objects.filter(login_id=login_id, login_type=login_type)
-        logg_user_id=user_profile.first().user_id
-        if not user_profile.exists():
-
-            return self._getRespones({
-                'result_code': self.code_f_id_exist,
-                'message': f"{login_id} Login failed",
-                'errors': f"{login_id}: don't exist"
-            })
-
-        try:
-            # 验证令牌
-            user_token_content = UserTokens.objects.filter(
-                user_id=user_profile.first(), refresh_token=refresh_token, is_active=True
-            )
-            if not user_token_content.exists():
-                err_data="refresh_token has expired"
-                logger.log_user_action(logg_user_id, login_method, False, ip_address, user_agent, err_data)
-
-                return self._getRespones({
-                    'result_code': self.code_f_id_exist,
-                    'message': f"{login_id} Login failed",
-                    'errors': err_data
-                })
-
-            # 获取用户代理和 IP 地址
-
-
-            # 生成旧的会话密钥
-            old_session_key = AccountEvent.generate_seeison_key(
-                user_profile.first().user_id, user_token_content.first().access_token, user_agent, ip_address
-            )
-
-            # 更新令牌
-            access_token, expiration_time = self.generate_access_token(
-                user_profile.first().login_id, user_profile.first().password
-            )
-            user_token_content.update(access_token=access_token, expires_at=expiration_time)
-
-            # 生成新的会话密钥
-            new_session_key = AccountEvent.generate_seeison_key(
-                user_profile.first().user_id, access_token, user_agent, ip_address
-            )
-
-            # 更新会话
-            update_data = {
-                "session_key": new_session_key,
-                "last_activity": now(),
-                "login_method": "token",
-            }
-            session_data = AccountEvent.update_session(
-                user_profile.first(), old_session_key, update_data
-            )
-
-            # 获取新令牌数据
-            token_data_new = UserTokens.objects.filter(
-                user_id=user_profile.first(), access_token=access_token, is_active=True
-            ).first()
-            token_data = {
-                "user_id": user_profile.first().user_id,
-                "access_token": token_data_new.access_token,
-                "refresh_token": token_data_new.refresh_token,
-                "token_type": token_data_new.token_type,
-                "expires_at": token_data_new.expires_at
-            }
-            refresh_success="Token refresh success"
-            logger.log_user_action(logg_user_id, login_method,
-                                   True, ip_address, user_agent, refresh_success)
-
-            return self._getSuccessRespones({
-                'result_code': self.success,
-                'message': "Token refresh success",
-                'data': {
-                    "token_data": token_data,
-                    "session_data": session_data
+                new_session_key = AccountEvent.generate_seeison_key(
+                    user_id, new_access_token, user_agent, ip_address
+                )
+                update_data = {
+                    "session_key": new_session_key,
+                    "last_activity": now(),
+                    "login_method": "token",
                 }
-            })
+                session_data = AccountEvent.update_session(
+                    user_id, old_session_key, update_data
+                )
 
-        except Exception as e:
-            logger.log_user_action(logg_user_id, login_method, False, ip_address, user_agent, str(e))
+                # 获取新令牌数据
+                token_data_new = UserTokens.objects.get(
+                    user_id=user_id, access_token=new_access_token, is_active=True
+                )
+                token_data = {
+                    "user_id":user_id,
+                    "access_token": token_data_new.access_token,
+                    "refresh_token": token_data_new.refresh_token,
+                    "token_type": token_data_new.token_type,
+                    "expires_at": token_data_new.expires_at
+                }
+                return self._getSuccessRespones(self.success,self.REFRESH_SUCCESS_MESSAGE,token_data)
+            except Exception as e:
+                return self._getErrorRespones(self.code_failed,self.REFRESH_FAILED_MESSAGE,str(e))
 
-            return self._getRespones({
-                'result_code': self.code_f_id_exist,
-                'message': f"{login_id} Login failed",
-                'errors': str(e)
-            })
+
+        return self._getErrorRespones(self.code_failed,self.REFRESH_FAILED_MESSAGE,serializer.errors)
+        # required_fields = ['login_id', 'refresh_token', 'login_type']
+        # error_fields = self.verify_fields(request, required_fields)
+        # if error_fields:
+        #     return self._getRespones(error_fields)
+        #
+        # login_id = request.data['login_id']
+        # login_type = request.data['login_type']
+        # refresh_token = request.data['refresh_token']
+        #
+        # # 验证账号值
+        # error_id_value = self.verify_account_value(login_id, login_type)
+        # if error_id_value:
+        #     return self._getRespones(error_id_value)
+        #
+        # # 验证 Authorization header
+        #
+        # if not auth_header or auth_header != "refresh_token":
+        #     return self._getRespones({
+        #         'result_code': self.code_f_id,
+        #         'message': "Invalid access token",
+        #         'errors': {"Authorization": "refresh_token type missing."}
+        #     })
+        # user_agent, ip_address = self.getUserAgent(request)
+        # # 验证用户是否存在
+        # if not self.verify_id_exist(login_id, login_type):
+        #     return self._getRespones({
+        #         'result_code': self.code_f_id_exist,
+        #         'message': f"{login_id} Login failed",
+        #         'errors': f"{login_id}: don't exist"
+        #     })
+        #
+        # user_profile = UserProfile.objects.filter(login_id=login_id, login_type=login_type)
+        # logg_user_id=user_profile.first().user_id
+        # if not user_profile.exists():
+        #
+        #     return self._getRespones({
+        #         'result_code': self.code_f_id_exist,
+        #         'message': f"{login_id} Login failed",
+        #         'errors': f"{login_id}: don't exist"
+        #     })
+
+        # try:
+        #     # 验证令牌
+        #     user_token_content = UserTokens.objects.filter(
+        #         user_id=user_profile.first(), refresh_token=refresh_token, is_active=True
+        #     )
+        #     if not user_token_content.exists():
+        #         err_data="refresh_token has expired"
+        #         logger.log_user_action(logg_user_id, login_method, False, ip_address, user_agent, err_data)
+        #
+        #         return self._getRespones({
+        #             'result_code': self.code_f_id_exist,
+        #             'message': f"{login_id} Login failed",
+        #             'errors': err_data
+        #         })
+        #
+        #     # 获取用户代理和 IP 地址
+        #
+        #
+        #     # 生成旧的会话密钥
+        #     old_session_key = AccountEvent.generate_seeison_key(
+        #         user_profile.first().user_id, user_token_content.first().access_token, user_agent, ip_address
+        #     )
+        #
+        #     # 更新令牌
+        #     access_token, expiration_time = self.generate_access_token(
+        #         user_profile.first().login_id, user_profile.first().password
+        #     )
+        #     user_token_content.update(access_token=access_token, expires_at=expiration_time)
+        #
+        #     # 生成新的会话密钥
+        #     new_session_key = AccountEvent.generate_seeison_key(
+        #         user_profile.first().user_id, access_token, user_agent, ip_address
+        #     )
+        #
+        #     # 更新会话
+        #     update_data = {
+        #         "session_key": new_session_key,
+        #         "last_activity": now(),
+        #         "login_method": "token",
+        #     }
+        #     session_data = AccountEvent.update_session(
+        #         user_profile.first(), old_session_key, update_data
+        #     )
+        #
+        #     # 获取新令牌数据
+        #     token_data_new = UserTokens.objects.filter(
+        #         user_id=user_profile.first(), access_token=access_token, is_active=True
+        #     ).first()
+        #     token_data = {
+        #         "user_id": user_profile.first().user_id,
+        #         "access_token": token_data_new.access_token,
+        #         "refresh_token": token_data_new.refresh_token,
+        #         "token_type": token_data_new.token_type,
+        #         "expires_at": token_data_new.expires_at
+        #     }
+        #     refresh_success="Token refresh success"
+        #     logger.log_user_action(logg_user_id, login_method,
+        #                            True, ip_address, user_agent, refresh_success)
+        #
+        #     return self._getSuccessRespones({
+        #         'result_code': self.success,
+        #         'message': "Token refresh success",
+        #         'data': {
+        #             "token_data": token_data,
+        #             "session_data": session_data
+        #         }
+        #     })
+        #
+        # except Exception as e:
+        #     logger.log_user_action(logg_user_id, login_method, False, ip_address, user_agent, str(e))
+        #
+        #     return self._getRespones({
+        #         'result_code': self.code_f_id_exist,
+        #         'message': f"{login_id} Login failed",
+        #         'errors': str(e)
+        #     })
 
     def accessTokenStatus(self,request):
         logger = AccountEvent()

@@ -165,7 +165,7 @@ class UserLoginSerializer(serializers.Serializer):
 class UserLogoutSerializer(serializers.Serializer):
     login_id = serializers.CharField(required=True, allow_blank=False)
     login_type = serializers.ChoiceField(choices=['email', 'phone'], required=True)
-
+    user_id = serializers.IntegerField(read_only=True)
     def validate_login_id(self, value):
         """根据 login_type 验证 login_id 的值。"""
         login_type = self.initial_data.get('login_type')  # 从请求数据中获取 login_type
@@ -196,7 +196,11 @@ class UserLogoutSerializer(serializers.Serializer):
                 Q(user_id=user) & Q(access_token=getAccessToken) & Q(is_active=True)
             )
             if user_token_content.expires_at < now():
-                raise ValidationError({f"access_token already Expired."})
+                err_data={
+                    'user_id':user.user_id,
+                    "err_message":{f"access_token already Expired."}
+                }
+                raise ValidationError(err_data)
             session_key = self.generate_seeison_key(user.user_id,
                                                             getAccessToken, user_agent, ip_address)
             user_sessions = UserSessions.objects.get(
@@ -205,15 +209,15 @@ class UserLogoutSerializer(serializers.Serializer):
             user_sessions.is_active = False
             user_token_content.save()
             user_sessions.save()
-            print("logout success ")
+            attrs['user_id']=user.user_id
         except UserProfile.DoesNotExist:
             raise ValidationError({f"login_id": f"The {login_type} doesn't exist."})
         except UserTokens.DoesNotExist:
             raise ValidationError({f"access_token already Expired."})
         except UserSessions.DoesNotExist:
-            raise ValidationError({f"session_key already Expired."})
-
+            raise ValidationError({f"your account dont login the {user_agent} "})
         return attrs
+
 
     def generate_seeison_key(self, user_id, access_token, user_agent, ip_address):
         user_id_str = str(user_id)
@@ -226,6 +230,49 @@ class UserLogoutSerializer(serializers.Serializer):
         # Generate SHA-256 hash
         session_key = hashlib.sha256(raw_data.encode('utf-8')).hexdigest()
         return session_key
+class refreshTokenSerializer(serializers.Serializer):
+    login_id = serializers.CharField(required=True, allow_blank=False)  # 登录ID，必填字段
+    login_type = serializers.ChoiceField(choices=['email', 'phone'], required=True)  # 登录类型，必须选择 'email' 或 'phone'
+    user_id = serializers.IntegerField(read_only=True)  # 用户ID，只读字段，自动生成
+    refresh_token = serializers.CharField(max_length=100, required=True)  # 刷新令牌，最大长度为100，必填字段
+    access_token = serializers.CharField(read_only=True)  # 刷新令牌，最大长度为100，必填字段
+    password = serializers.CharField(read_only=True)
+    def validate(self, data):
+        """
+        自定义校验方法，可以用于验证多个字段的组合条件。
+        例如：确保 login_id 和 login_type 匹配。
+        """
+        auth_header = self.context.get('authorization')
+        login_id = data.get('login_id')
+        login_type = data.get('login_type')
+        refresh_token=data.get('refresh_token')
+        # 示例：可以检查 login_id 和 login_type 的组合
+        if login_type == 'email' and '@' not in login_id:
+            raise serializers.ValidationError({"login_id": "If login type is 'email', a valid email must be provided."})
+
+        if login_type == 'phone' and not login_id.isdigit():
+            raise serializers.ValidationError({"login_id": "If login type is 'phone', login_id must be numeric."})
+
+        if not auth_header or auth_header != "refresh_token":
+            raise serializers.ValidationError({"Authorization": "refresh_token type missing."})
+
+        try:
+            user = UserProfile.objects.get(
+                Q(login_id=login_id) & Q(login_type=login_type)
+            )
+            user_token_content = UserTokens.objects.get(
+                Q(user_id=user) & Q(refresh_token=refresh_token) & Q(is_active=True)
+            )
+            access_token=user_token_content.access_token
+            data['user_id']=user.user_id
+            data['password'] = user.password
+            data['access_token']=access_token
+        except UserProfile.DoesNotExist:
+            raise ValidationError({f"login_id": f"The {login_type} doesn't exist."})
+        except UserTokens.DoesNotExist:
+            raise ValidationError({f"refresh_token already Expired."})
+
+        return data
 # UserAuthLogs Serializer
 class UserAuthLogsSerializer(serializers.ModelSerializer):
     class Meta:

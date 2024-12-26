@@ -30,6 +30,10 @@ class VerifyParm(APIView):
         self.REGISTER_FAILED_MESSAGE = "Register Failed"
         self.LOGIN_FAILED_MESSAGE="Login Failed"
         self.LOGIN_SUCCESS_MESSAGE = "Login Success"
+        self.LOGOUT_SUCCESS_MESSAGE="Logout Success"
+        self.LOGOUT_FAILED_MESSAGE="Logout Failed"
+        self.REFRESH_SUCCESS_MESSAGE="Refresh Token Success"
+        self.REFRESH_FAILED_MESSAGE="Refresh Token Failed"
 
     def _getErrorRespones(self, result_code, message, err_data):
         response_data = {
@@ -143,6 +147,15 @@ class VerifyParm(APIView):
                 'errors': {"login_id": f" {login_id} don't exist."}
             }
             return data,None
+
+    def verify_logout_exists(self, login_id,  login_type):
+        try:
+            user = UserProfile.objects.get(
+                Q(login_id=login_id) & Q(login_type=login_type)
+            )
+            return user.user_id
+        except UserProfile.DoesNotExist:
+            return None
     def decode_access_token(self,access_token,secret_key):
         try:
             decoded_token = jwt.decode(access_token, secret_key, algorithms=['HS256'])
@@ -203,7 +216,7 @@ class VerifyParm(APIView):
 
     def generate_id_token(self,user_data):
         import datetime
-        print(user_data)
+        self.validate_user_data(user_data)
         password=settings.SECRET_KEY
         """
         使用密码哈希生成密钥，并生成 id_token（JWT）。
@@ -227,3 +240,16 @@ class VerifyParm(APIView):
         # 使用哈希后的密码作为密钥生成并返回 id_token
         id_token = jwt.encode(payload, hashed_password, algorithm='HS256')
         return id_token
+
+    def validate_user_data(self,user_data):
+        required_fields = ['user_id', 'name', 'gender', 'age', 'birthday', 'language', 'login_id', 'login_type']
+
+        # 确保 user_data 是字典并且包含所有必需的字段
+        if not isinstance(user_data, dict):
+            raise ValueError("user_data should be a dictionary")
+
+        for field in required_fields:
+            if field not in user_data:
+                raise ValueError(f"Missing required field: {field}")
+
+        return True

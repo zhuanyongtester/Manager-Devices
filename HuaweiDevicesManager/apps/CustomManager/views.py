@@ -60,8 +60,6 @@ class UserLoginView(AccessAuth):
                 serializer.save()
         return Response(result)
 
-
-
 class UserLogoutView(AccessAuth):
     permission_classes = [AllowAny]  # 允许任何用户访问该视图
 
@@ -73,7 +71,7 @@ class UserLogoutView(AccessAuth):
 
         # 检查 registerStatus 的返回值
 
-        return result
+        return Response(result)
 
 
 class RefreshTokenView(AccessAuth):
@@ -83,9 +81,9 @@ class RefreshTokenView(AccessAuth):
         # csrf_token = request.META.get('HTTP_X_CSRFTOKEN')
         # if not csrf_token or not self.validate_csrf_token(csrf_token):
         #     return Response({"error": "CSRF token missing or invalid"}, status=status.HTTP_403_FORBIDDEN)
-
+        result=self.refreshTokenStatus(request)
         # 如果序列化失败，返回错误
-        return self.refreshTokenStatus(request)
+        return Response(result)
 
 class AccessTokenView(AccessAuth):
     permission_classes = [AllowAny]  # 允许任何用户访问该视图
