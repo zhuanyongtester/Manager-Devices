@@ -3,7 +3,8 @@ from django.shortcuts import get_object_or_404
 from rest_framework import status, response
 
 from apps.StoresManager.models import Store
-from apps.StoresManager.serializers import StoreSerializer, ReviewStoreSerializer, StoreTagSerializer
+from apps.StoresManager.serializers import StoreSerializer, ReviewStoreSerializer, StoreTagSerializer, \
+    StoreReviewCreateSerializer
 from apps.StoresManager.storeManager.VerifyParm import VerifyParm
 
 
@@ -41,28 +42,49 @@ class BaseStore(VerifyParm):
 
         return self._getSuccessRespones(self.success_1000, self.SUCCESS_CREATE, {"success": success_data})
 
-    def store_review_status(self,request):
-        serializer = ReviewStoreSerializer(data=request.data)
-        store_id=request.data['store']
+    def store_review_status(self, request):
+        review_data, tag_data = self._getReviewData(request)
+        if not review_data:
+            return self._getErrorRespones(self.FAILED_1003, self.FAILED_CREATE_REVIEW, tag_data)
+
+        serializer = ReviewStoreSerializer(data=review_data)
         if serializer.is_valid():
-            data_tag = self.store_tag_status(request)
+            # Save the valid review data
+            review_instance = serializer.save()
+
+            # Retrieve the store ID from the saved instance
+            store_id = review_instance.store_id
+
+            # Process store tags
+            data_tag = self.store_tag_status(tag_data)
             if not data_tag:
                 return self._getErrorRespones(self.FAILED_1002, self.FAILED_CREATE, data_tag)
-            store_instance = Store.objects.get(store_id=store_id)
-            reviews = store_instance.reviews.all()  # 使用 related_name 访问评论
-            for review in reviews:
-                print(f"user name: {review.user.name},Rating: {review.rating}, Comment: {review.comment}")
-            store = get_object_or_404(Store,store_id=store_id)
-            store.update_average_rating()  # 更新评分
-            serializer.save()  # 保存有效的数据
 
-            return self._getSuccessRespones(self.success_1000, self.SUCCESS_CREATE_REVIEW, serializer.data)
+            # Retrieve the store instance and related reviews
+            store_instance = get_object_or_404(Store, store_id=store_id)
+            reviews = store_instance.reviews.all()
+            for review in reviews:
+                print(f"user name: {review.user.name}, Rating: {review.rating}, Comment: {review.comment}")
+
+            # Update the store's average rating
+            store_instance.update_average_rating()
+
+            return self._getSuccessRespones(
+                self.success_1000,
+                self.SUCCESS_CREATE_REVIEW,
+                serializer.data
+            )
+
+        # Handle serializer validation errors
         return self._getErrorRespones(self.FAILED_1002, self.FAILED_CREATE, serializer.errors)
 
-    def store_tag_status(self,request):
-        serializer = StoreTagSerializer(data=request.data)
+    def store_tag_status(self,data):
+        print("tag----")
+        print(data)
+        serializer = StoreTagSerializer(data=data)
         if serializer.is_valid():
             serializer.save()  # 保存有效的数据
+            print(serializer.data)
             return self._getSuccessRespones(self.success_1000, self.SUCCESS_CREATE_REVIEW, serializer.data)
         return self._getErrorRespones(self.FAILED_1002, self.FAILED_CREATE, serializer.errors)
 

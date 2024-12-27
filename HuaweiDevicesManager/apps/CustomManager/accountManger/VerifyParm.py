@@ -1,13 +1,17 @@
 import hashlib
+import json
 import re
 import secrets
 
+from cryptography.fernet import Fernet
+from django.forms import model_to_dict
 from django.utils import timezone
 from datetime import timedelta, datetime
 import jwt
 from django.db.models import Q
+from django.utils.timezone import now
 from rest_framework import status, response
-from rest_framework.exceptions import ValidationError
+
 from rest_framework.views import APIView
 import apps.CustomManager.accountManger.comm as com
 from HuaweiDevicesManager import settings
@@ -16,13 +20,16 @@ from apps.CustomManager.models import UserProfile, UserTokens
 
 
 class VerifyParm(APIView):
-    def __init__(self, error_des=None):
+    def __init__(self, error_des=None,encryption_key=None):
         self.code_failed = status.HTTP_400_BAD_REQUEST
         self.success = 2000
         self.code_f_fields_null = 2001
         self.code_f_id = 2002
         self.code_f_id_exist = 2003
         self.code_f_id_other = 2004
+        self.refresh_token_expiry_days = 30  # 刷新令牌的有效期（天）
+        self.encryption_key = encryption_key or Fernet.generate_key()
+        self.fernet = Fernet(self.encryption_key)
         self.error_des = error_des
         self.SUCCESS_201 = status.HTTP_201_CREATED
         self.SUCCESS_200 = status.HTTP_200_OK
@@ -30,6 +37,16 @@ class VerifyParm(APIView):
         self.REGISTER_FAILED_MESSAGE = "Register Failed"
         self.LOGIN_FAILED_MESSAGE="Login Failed"
         self.LOGIN_SUCCESS_MESSAGE = "Login Success"
+        self.LOGOUT_SUCCESS_MESSAGE="Logout Success"
+        self.LOGOUT_FAILED_MESSAGE="Logout Failed"
+        self.REFRESH_SUCCESS_MESSAGE="Refresh Token Success"
+        self.REFRESH_FAILED_MESSAGE="Refresh Token Failed"
+        self.TOKEN_SUCCESS_MESSAGE="Token Login Success"
+        self.TOKEN_FAILED_MESSAGE="Token Login Failed"
+        self.action_login='login'
+        self.action_logout='logout'
+        self.action_refresh='refresh'
+        self.action_token='token'
 
     def _getErrorRespones(self, result_code, message, err_data):
         response_data = {
@@ -143,6 +160,15 @@ class VerifyParm(APIView):
                 'errors': {"login_id": f" {login_id} don't exist."}
             }
             return data,None
+
+    def verify_logout_exists(self, login_id,  login_type):
+        try:
+            user = UserProfile.objects.get(
+                Q(login_id=login_id) & Q(login_type=login_type)
+            )
+            return user.user_id
+        except UserProfile.DoesNotExist:
+            return None
     def decode_access_token(self,access_token,secret_key):
         try:
             decoded_token = jwt.decode(access_token, secret_key, algorithms=['HS256'])
@@ -162,8 +188,21 @@ class VerifyParm(APIView):
         access_token = jwt.encode(payload, secret_key, algorithm='HS256')
         return access_token, expiration_time
 
-    def generate_refresh_token(self):
-        return secrets.token_urlsafe(64)  # 长随机字符串作为 refresh_token
+    def generate_refresh_token(self,device_info=None):
+
+        raw_token = secrets.token_urlsafe(64)
+
+        # 将设备信息转为 JSON 格式
+        device_info_json = json.dumps(device_info or {})
+
+        # 拼接令牌和设备信息
+        combined_data = f"{raw_token}:{device_info_json}"
+
+        # 加密令牌
+        encrypted_token = self.fernet.encrypt(combined_data.encode()).decode()
+
+
+        return encrypted_token
     def getUserAgent(self,request):
         # 获取设备信息
         user_agent = request.headers.get('User-Agent', 'unknown_device')
@@ -203,7 +242,7 @@ class VerifyParm(APIView):
 
     def generate_id_token(self,user_data):
         import datetime
-        print(user_data)
+        self.validate_user_data(user_data)
         password=settings.SECRET_KEY
         """
         使用密码哈希生成密钥，并生成 id_token（JWT）。
@@ -227,3 +266,50 @@ class VerifyParm(APIView):
         # 使用哈希后的密码作为密钥生成并返回 id_token
         id_token = jwt.encode(payload, hashed_password, algorithm='HS256')
         return id_token
+
+    def validate_user_data(self,user_data):
+        required_fields = ['user_id', 'name', 'gender', 'age', 'birthday', 'language', 'login_id', 'login_type']
+
+        # 确保 user_data 是字典并且包含所有必需的字段
+        if not isinstance(user_data, dict):
+            raise ValueError("user_data should be a dictionary")
+
+        for field in required_fields:
+            if field not in user_data:
+                raise ValueError(f"Missing required field: {field}")
+
+        return True
+
+    def getNewAccessToken(self,login_id,login_type,old_access_token,device=None):
+        try:
+            user=UserProfile.objects.get(
+                    Q(login_id=login_id)& Q(login_type=login_type))
+
+            user_token_content = UserTokens.objects.get(
+                Q(user_id=user) & Q(access_token=old_access_token) & Q(is_active=True)
+            )
+            new_access_token, new_expiration_time = self.generate_access_token(user.user_id,
+                                                                       user.password, device)
+            user_token_content.access_token = new_access_token
+            user_token_content.expires_at = new_expiration_time
+            user_token_content.save()
+        except Exception as e:
+            new_access_token=None
+            new_expiration_time=now()
+        return new_access_token,new_expiration_time
+    def getNewId_token(self,login_id,login_type):
+        import datetime
+        try:
+            user = UserProfile.objects.get(
+                Q(login_id=login_id) & Q(login_type=login_type)
+            )
+            # 将 UserProfile 实例转换为字典
+            user_dict = model_to_dict(user)
+            user_dict['birthday'] = user_dict['birthday'].isoformat() if isinstance(user_dict['birthday'], (
+                datetime.date, datetime.datetime)) else user_dict['birthday']
+
+            user_data = self.generate_id_token(user_dict)
+        except UserProfile.DoesNotExist:
+            user_data=None
+            user=None
+        return user_data,user
