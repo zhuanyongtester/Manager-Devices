@@ -62,18 +62,25 @@ class VerifyParm(APIView):
             'radius':data['radius']
         }
         serializer = NearbyQuerySerializer(data=new_data)
-
+        success_data = []
         if serializer.is_valid():
             print("nearby ---")
             # 访问 validated_data
             print(serializer.validated_data)
-            # 保存对象
+
             serializer.save()
             user_latitude=serializer.validated_data['latitude']
             print("nearby ---store:" + str(user_latitude))
             user_longitude = serializer.validated_data['longitude']
             radius = serializer.validated_data['radius']
             result=self._nearby_store(user_latitude,user_longitude,radius)
+            for result_data in result:
+                success_data.append({
+                    "store_id": result_data.store_id,  # 返回 store_id
+                    "store_name": result_data.store_name,  # 返回 store_name
+                    "average_rating": result_data.average_rating  # 返回 average_rating
+                }
+                )
             return result
         else:
             # 如果序列化器无效，打印错误

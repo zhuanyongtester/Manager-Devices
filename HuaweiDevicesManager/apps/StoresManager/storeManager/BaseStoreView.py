@@ -27,18 +27,24 @@ class BaseStore(VerifyParm):
             serializer = StoreSerializer(data=data)
             if serializer.is_valid():
                 serializer.save()  # Save valid data
-                success_data.append({
-                "store_id": serializer.data["store_id"],   # 返回 store_id
-                "store_name": serializer.data["store_name"],  # 返回 store_name
-                "average_rating": serializer.data.get("average_rating", None)  # 返回 average_rating
-            })
+            #     success_data.append({
+            #     "store_id": serializer.data["store_id"],   # 返回 store_id
+            #     "store_name": serializer.data["store_name"],  # 返回 store_name
+            #     "average_rating": serializer.data.get("average_rating", None)  # 返回 average_rating
+            # })
             failed_data.append({
                 "store_name": data.get("store_name", None),  # 返回 store_name from input data
                 "address": data.get("address", None),  # 返回 store_id from input data
                 "errors": serializer.errors  # Store errors for failed data
             })
         store_result=self._nearbyQuery_save(user_info)
-
+        for result_data in store_result:
+            success_data.append({
+                    "store_id": result_data.store_id,  # 返回 store_id
+                    "store_name":result_data.store_name,  # 返回 store_name
+                    "average_rating": result_data.average_rating  # 返回 average_rating
+                }
+            )
         if failed_data:
             return self._getErrorRespones(
                 self.FAILED_1001,
