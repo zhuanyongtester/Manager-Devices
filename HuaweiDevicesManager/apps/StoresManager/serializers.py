@@ -241,8 +241,7 @@ class StoreTagSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        user = StoreTag.objects.create(**validated_data)
-        user.save()
+
         return user
 
 
