@@ -15,24 +15,36 @@ class BaseStore(VerifyParm):
         if isinstance(result, dict) and result.get('statusCode') == 400:  # If it's a dictionary and statusCode is 400
             return result
 
+        store_list = result.get('data', {}).get('store_list', [])  # 获取 store_list，防止键不存在的错误
+        user_info = result.get('data', {}).get('user_info', None)  # 获取 user_info，若没有则为 None
+
+
+
         success_data = []
         failed_data = []
 
-        for data in result['data']:
+        for data in store_list:
             serializer = StoreSerializer(data=data)
             if serializer.is_valid():
                 serializer.save()  # Save valid data
-                success_data.append({
-                "store_id": serializer.data["store_id"],   # 返回 store_id
-                "store_name": serializer.data["store_name"],  # 返回 store_name
-                "average_rating": serializer.data.get("average_rating", None)  # 返回 average_rating
-            })
+            #     success_data.append({
+            #     "store_id": serializer.data["store_id"],   # 返回 store_id
+            #     "store_name": serializer.data["store_name"],  # 返回 store_name
+            #     "average_rating": serializer.data.get("average_rating", None)  # 返回 average_rating
+            # })
             failed_data.append({
                 "store_name": data.get("store_name", None),  # 返回 store_name from input data
                 "address": data.get("address", None),  # 返回 store_id from input data
                 "errors": serializer.errors  # Store errors for failed data
             })
-
+        store_result=self._nearbyQuery_save(user_info)
+        for result_data in store_result:
+            success_data.append({
+                    "store_id": result_data.store_id,  # 返回 store_id
+                    "store_name":result_data.store_name,  # 返回 store_name
+                    "average_rating": result_data.average_rating  # 返回 average_rating
+                }
+            )
         if failed_data:
             return self._getErrorRespones(
                 self.FAILED_1001,
@@ -80,12 +92,15 @@ class BaseStore(VerifyParm):
 
     def store_tag_status(self,data):
         print("tag----")
-        print(data)
+
         serializer = StoreTagSerializer(data=data)
         if serializer.is_valid():
             serializer.save()  # 保存有效的数据
+            print("tag---1111")
             print(serializer.data)
             return self._getSuccessRespones(self.success_1000, self.SUCCESS_CREATE_REVIEW, serializer.data)
+        print("tag----22222")
+        print(serializer.errors)
         return self._getErrorRespones(self.FAILED_1002, self.FAILED_CREATE, serializer.errors)
 
 

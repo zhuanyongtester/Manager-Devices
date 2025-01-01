@@ -3,9 +3,11 @@ from django.utils.timezone import now
 from rest_framework import status, response, serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
+from math import radians, sin, cos, sqrt, atan2
 
 from apps.CustomManager.models import UserProfile, UserTokens
-from apps.StoresManager.serializers import StoresCreateSerializer, StoreReviewCreateSerializer
+from apps.StoresManager.models import Store
+from apps.StoresManager.serializers import StoresCreateSerializer, StoreReviewCreateSerializer, NearbyQuerySerializer
 
 
 class VerifyParm(APIView):
@@ -48,12 +50,69 @@ class VerifyParm(APIView):
         try:
             # serializer.save()  # This triggers the create method
             validated_data = serializer.validated_data
-            store_list = validated_data.get('store_list', [])
-            return self._getSuccessRespones(self.success_1000,"verify json success",store_list)
+            return self._getSuccessRespones(self.success_1000,"verify json success",validated_data)
         except Exception as e:
             return  self._getErrorRespones(500, "Error during store creation", str(e))
       return self._getErrorRespones(400, "Validation Failed", serializer.errors)
+    def _nearbyQuery_save(self,data):
+        new_data={
+            'user':data['user_id'],
+            'latitude':data['latitude'],
+            'longitude':data['longitude'],
+            'radius':data['radius']
+        }
+        serializer = NearbyQuerySerializer(data=new_data)
+        success_data = []
+        if serializer.is_valid():
+            print("nearby ---")
+            # 访问 validated_data
+            print(serializer.validated_data)
 
+            serializer.save()
+            user_latitude=serializer.validated_data['latitude']
+            print("nearby ---store:" + str(user_latitude))
+            user_longitude = serializer.validated_data['longitude']
+            radius = serializer.validated_data['radius']
+            result=self._nearby_store(user_latitude,user_longitude,radius)
+            for result_data in result:
+                success_data.append({
+                    "store_id": result_data.store_id,  # 返回 store_id
+                    "store_name": result_data.store_name,  # 返回 store_name
+                    "average_rating": result_data.average_rating  # 返回 average_rating
+                }
+                )
+            return result
+        else:
+            # 如果序列化器无效，打印错误
+           return []
+    def _nearby_store(self,user_lat,user_lon,radius ):
+        stores = Store.objects.all()  # 获取所有店铺
+
+        nearby_stores = []
+        for store in stores:
+            store_lat = store.latitude
+            store_lon = store.longitude
+            distance = self.calculate_distance(user_lat, user_lon, store_lat, store_lon)
+
+            if distance <= radius:
+                nearby_stores.append(store)
+
+        # 返回店铺信息
+        return nearby_stores
+
+
+    def calculate_distance(self,lat1, lon1, lat2, lon2):
+        R = 6371000  # Earth radius in meters
+        lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
+
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+
+        a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
+        c = 2 * atan2(sqrt(a), sqrt(1 - a))
+
+        distance = R * c  # Result in meters
+        return distance
     def _getReviewData(self,request):
         authorization = request.headers.get('Authorization', None)
         serializer = StoreReviewCreateSerializer(data=request.data, context={
@@ -71,7 +130,7 @@ class VerifyParm(APIView):
             tag_data={
                 "store": serializer.data['store_id'],
                 "user": serializer.data['user_id'],
-                "tag": stroe_tag,
+                "tag": str(stroe_tag)
 
             }
 

@@ -3,7 +3,7 @@ from django.utils.timezone import now
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from .models import Store, StoreTag, Review
+from .models import Store, StoreTag, Review, NearbyQuery
 from ..CustomManager.models import UserProfile, UserTokens
 from ..base.BaseParm import BaseParm
 
@@ -79,10 +79,9 @@ class StoresCreateSerializer(serializers.Serializer):
         required=True,
         help_text="A list of store dictionaries. Each item should be a dictionary."
     )
-    user_id = serializers.CharField(
+    user_info = serializers.DictField(
         required=True,
-        max_length=15,
-        help_text="The unique ID of the user making the interaction."
+        help_text="User information including user_id, latitude, and longitude.",
     )
 
 
@@ -107,12 +106,20 @@ class StoresCreateSerializer(serializers.Serializer):
     def validate(self, attrs):
         """Perform cross-field validation."""
         authorization = self.context.get('authorization')  # 从 context 中获取 Authorization
+        user_info = attrs.get('user_info')
+        user_id = user_info.get('user_id') if user_info else None
 
-        user_id = attrs.get('user_id')
         baseParm = BaseParm()
         baseParm.verity_access_token(user_id,authorization)
         if attrs.get('create_store') == 'create' and not attrs.get('store_list'):
             raise serializers.ValidationError("When 'create_store' is 'create', 'store_list' cannot be empty.")
+        latitude = user_info.get('latitude')
+        longitude = user_info.get('longitude')
+        if not latitude or not longitude:
+            raise serializers.ValidationError("Latitude and longitude are required in user_info.")
+        radius = user_info.get('radius')
+        if not radius:
+            raise serializers.ValidationError("Radius are required in user_info.")
         return attrs
 
     def create(self, validated_data):
@@ -156,7 +163,10 @@ class StoreReviewCreateSerializer(serializers.Serializer):
         Validate the structure and content of `store_review`.
         """
         required_fields = {"review_id", "rating", "comment", "timestamp"}
-        missing_fields = required_fields - set(value.keys())
+        if isinstance(value, dict):
+            missing_fields = required_fields - set(value.keys())
+        else:
+            raise serializers.ValidationError("Expected a dictionary, but got a list or another type.")
         if missing_fields:
             raise serializers.ValidationError(
                 f"Missing required fields in store_review: {', '.join(missing_fields)}"
@@ -209,10 +219,12 @@ class StoreReviewCreateSerializer(serializers.Serializer):
         except Store.DoesNotExist:
             raise ValidationError({f"store_id": f"The {store_id} doesn't exist."})
         # Add additional cross-field validation if needed
+        # 如果 store_tag 不存在或者为空，赋予默认空列表
 
         store_review = attrs.get("store_review", {})
         store_tag = attrs.get("store_tag", [])
-
+        if store_tag is None:
+            store_tag = []
         # 从 store_review 中提取 tag
         review_tag = store_review.get("tag", "").strip("[]")  # 去掉方括号
 
@@ -274,3 +286,25 @@ class ReviewStoreSerializer(serializers.ModelSerializer):
         user = Review.objects.create(**validated_data)
         user.save()
         return user
+
+
+class NearbyQuerySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = NearbyQuery  # 序列化器使用的模型是 NearbyQuery
+        fields = ['user', 'latitude', 'longitude', 'radius', 'created_at']  # 序列化的字段
+        read_only_fields = ['created_at']  # created_at 字段是只读的，不允许通过请求数据传入
+
+    def validate(self, attrs):
+        """
+        可以在这里添加验证逻辑，如果需要对用户提交的查询数据进行额外的校验，可以在这里添加。
+        """
+        # 示例：确保 radius 大于 0
+
+        if attrs.get('radius', 0) <= 0:
+            raise serializers.ValidationError("Radius must be greater than 0.")
+        return attrs
+
+    def create(self, validated_data):
+        user = NearbyQuery.objects.create(**validated_data)
+        return user
+
