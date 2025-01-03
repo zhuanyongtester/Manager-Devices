@@ -169,6 +169,7 @@ class TempQrSession(models.Model):
     is_active = models.BooleanField(default=True, verbose_name="是否有效")
     user_id = models.ForeignKey(UserProfile, null=True, blank=True, on_delete=models.SET_NULL,
                                 verbose_name="用户标识符")
+    status = models.CharField(max_length=20, choices=[('waiting', 'Waiting'), ('approved', 'Approved'), ('rejected', 'Rejected')], default='waiting')  # 会话状态
     user_agent = models.CharField(max_length=255, verbose_name="用户设备信息（User-Agent）", null=True, blank=True)
     ip_address = models.CharField(max_length=45, verbose_name="用户登录时的 IP 地址", null=True,
                                   blank=True)  # 支持 IPv4 和 IPv6

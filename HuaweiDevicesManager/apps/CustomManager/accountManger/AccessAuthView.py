@@ -16,10 +16,10 @@ from django.utils.timezone import now
 import datetime
 from apps.CustomManager.accountManger.VerifyParm import VerifyParm
 from apps.CustomManager.form import UserRegistrationForm
-from apps.CustomManager.models import UserProfile, UserTokens, UserSessions
+from apps.CustomManager.models import UserProfile, UserTokens, UserSessions, TempQrSession
 from apps.CustomManager.accountManger.AccountEventView import AccountEvent
 from apps.CustomManager.serializers import UserProfileSerializer, UserLoginSerializer, UserLogoutSerializer, \
-    refreshTokenSerializer, accessTokenSerializer
+    refreshTokenSerializer, accessTokenSerializer, accessScanQrTokenSerializer
 
 
 class AccessAuth(VerifyParm):
@@ -364,7 +364,76 @@ class AccessAuth(VerifyParm):
         except Exception as e:
             return self._getErrorRespones(self.code_failed,self.GEN_FAILED_MESSAGE,str(e))
 
+    def verityQrStatus(self,request):
 
+        logger = AccountEvent()
+        login_id = request.data.get('login_id')
+        login_type = request.data.get('login_type')
+        auth_header = request.headers.get('Authorization')
+
+        # user_agent, ip_address = self.getUserAgent(request)
+
+        serializer = accessScanQrTokenSerializer(data=request.data,
+                                           context={'authorization': auth_header})
+        print("Qr token start------------")
+        if serializer.is_valid():
+            user_id = serializer.data['user_id']
+            access_token = serializer.data['access_token']
+            ip_address = serializer.data['ip_address']
+            user_agent = serializer.data['user_agent']
+            id_token, user = self.getNewId_token(login_id, login_type)
+            new_access_token, new_expiration_time = self.generate_access_token(user.user_id,
+                                                                               user.password, user_agent)
+            refresh_token = self.generate_refresh_token(user_agent)
+            sessionStatus, sessionData = AccountEvent.create_session(user_id, access_token, user_agent,
+                                                                     ip_address)
+            if not sessionStatus:
+                logger.log_user_action(user_id, self.action_login, False, ip_address, user_agent, sessionData)
+                return self._getErrorRespones(self.code_f_id_exist, self.LOGIN_FAILED_MESSAGE, sessionData)
+            data = {
+                "user_id": user_id,
+                "access_token": access_token,
+
+                # 60分钟的tokendata = {str} 'Traceback (most recent call last):\n  File "D:\\fatuodownload\\AutoUpgradeApp\\venv\\Lib\\site-packages\\rest_framework\\fields.py", line 437, in get_attribute\n    return get_attribute(instance, self.source_attrs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^... View
+                "refresh_token": refresh_token,  # 刷新时间，长期有效，除非被注销
+                "id_token": id_token,
+                "token_type": "Bear",  # token类型
+                "expires_at": new_expiration_time,  # 60分钟过期时间
+
+            }
+
+            result = {
+                'result_code': self.success,
+                'message': f"{login_id} Login success",
+                'data': data
+            }
+            devices_data = {
+                "user_agent": user_agent,
+                "ip_address": ip_address
+
+            }
+            logger.log_user_action(user_id, self.action_login, True, ip_address, user_agent, data)
+            logger.create_activity(user_id, self.action_login, devices_data)
+            return self._getSuccessRespones(self.success, self.LOGIN_SUCCESS_MESSAGE, result)
+
+
+        return self._getErrorRespones(self.success, self.LOGIN_FAILED_MESSAGE, serializer.errors)
+
+    def veritySessionKey(self, session_key):
+        """
+        验证 session_key 是否有效
+        """
+
+        try:
+            # 假设 QrCode 是你用来存储二维码状态的模型
+            result=self._verity_session_key(session_key)
+            return self._getSuccessRespones(self.success,self.GEN_SUCCESS_MESSAGE,result)
+
+        except Exception as e:
+            # 如果没有找到对应的 session_key，则返回错误
+            return self._getErrorRespones(self.code_failed,self.GEN_FAILED_MESSAGE,str(e))
+
+        # 如果二维码已经过期，返回错误
 
 
 

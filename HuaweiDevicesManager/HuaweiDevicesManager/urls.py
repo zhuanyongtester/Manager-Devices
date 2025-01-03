@@ -18,6 +18,10 @@ from django.contrib import admin
 from django.views.static import serve
 from django.urls import path,re_path,include
 from django.conf import settings
+
+from apps.CustomManager import urls as device_urls  # 引用刚才定义的 websocket_urlpatterns
+
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
@@ -25,4 +29,6 @@ urlpatterns = [
     re_path('^auth/', include('apps.DevicesManager.urls', namespace="DevicesManager")),
     re_path('^api/', include('apps.CustomManager.urls', namespace="CustomManager")),
     re_path('^store/', include('apps.StoresManager.urls', namespace="StoresManager")),
+    re_path('^ws/', include(device_urls.websocket_urlpatterns)),  # 通过 include 包含 WebSocket 路径配置
+
 ]

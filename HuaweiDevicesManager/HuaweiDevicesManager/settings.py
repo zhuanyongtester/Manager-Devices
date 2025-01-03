@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'apps.UserLogin',
     'apps.CustomManager',
     'apps.StoresManager',
+    'channels',
 
 ]
 
@@ -76,7 +77,14 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'HuaweiDevicesManager.wsgi.application'
-
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],  # Redis 地址
+        },
+    },
+}
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases

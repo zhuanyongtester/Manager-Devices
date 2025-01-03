@@ -17,8 +17,9 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path,re_path
 
+from apps.CustomManager.consumers import DeviceConsumer
 from apps.CustomManager.views import UserRegisterView,UserLoginView,UserLogoutView,RefreshTokenView,\
-    AccessTokenView,AccountModifyView,FoundOutAccountView,GenerateQrUrlView
+    AccessTokenView,AccountModifyView,FoundOutAccountView,GenerateQrUrlView,VerifyQrUrlView
 app_name = 'DevicesManager'
 urlpatterns = [
     re_path(r'^register', UserRegisterView.as_view(), name='user_register'),
@@ -29,5 +30,10 @@ urlpatterns = [
     re_path(r'^modify', AccountModifyView.as_view(), name='user_modify'),
     re_path(r'^found', FoundOutAccountView.as_view(), name='user_fount_out'),
     re_path(r'^gen', GenerateQrUrlView.as_view(), name='user_generate'),
+    re_path(r'^verity', VerifyQrUrlView.as_view(), name='user_verity'),
 
+]
+websocket_urlpatterns = [
+    # 这里的 URL 会匹配如：/device/<device_id>/ 的 WebSocket 请求
+    re_path(r'^device/(?P<session_id>[a-f0-9\-]+)/$', DeviceConsumer.as_asgi()),  # 确保路由正确
 ]

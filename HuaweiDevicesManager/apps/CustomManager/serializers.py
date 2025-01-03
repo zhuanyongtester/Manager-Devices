@@ -1,5 +1,6 @@
 import hashlib
 import re
+from datetime import datetime
 
 from django.contrib.auth.hashers import make_password
 from django.db.models import Q
@@ -10,7 +11,7 @@ from rest_framework.exceptions import ValidationError
 
 
 from .models import UserProfile, UserAuthLogs, UserSocial, UserInterests, UserTokens, UserSessions, UserEvent, \
-    UserPreferences, UserActivity
+    UserPreferences, UserActivity, TempQrSession
 from apps.CustomManager.untils.mangertools import AccountUserManager
 # UserProfile Serializer
 class UserProfileSerializer(serializers.Serializer):  # 使用 Serializer，而非 ModelSerializer
@@ -377,6 +378,79 @@ class accessTokenSerializer(serializers.Serializer):
 
         return attrs
 
+class accessScanQrTokenSerializer(serializers.Serializer):
+    login_id = serializers.CharField(required=True, allow_blank=False)
+    login_type = serializers.ChoiceField(choices=['email', 'phone'], required=True)
+    session_key=serializers.CharField(max_length=100)
+    user_id = serializers.IntegerField(read_only=True)
+    access_token = serializers.CharField(read_only=True)  # 刷新令牌，最大长度为100，必填字段
+
+    def validate_login_id(self, value):
+        """根据 login_type 验证 login_id 的值。"""
+        login_type = self.initial_data.get('login_type')  # 从请求数据中获取 login_type
+        if login_type == 'email' and ('@' not in value or '.' not in value):
+            raise serializers.ValidationError("The login_id must be a valid email.")
+        if login_type == 'phone' and not value.isdigit():
+            raise serializers.ValidationError("The login_id must be a valid phone number.")
+        return value
+    def validate_session_key(self,value):
+        session_key = self.initial_data.get('session_key')  # 从请求数据中获取 login_type
+        try:
+            session = TempQrSession.objects.get(session_key=session_key, is_active=True)
+        except TempQrSession.DoesNotExist:
+            raise serializers.ValidationError({"session_key": "Invalid or expired session_key."})
+            # 检查 session_key 是否过期
+        if session.expires_at < now():
+            session.is_active = False  # 标记为无效
+            session.save()
+            raise serializers.ValidationError({"session_key": "Session has expired."})
+
+        return value
+
+
+
+
+    def validate(self, attrs):
+        """全局验证，确保 header 中有 Authorization。"""
+        authorization = self.context.get('authorization')  # 从 context 中获取 Authorization
+        login_type = attrs.get('login_type')
+        login_id = attrs.get('login_id')
+        session_key = attrs.get('session_key')
+        if not authorization:
+            raise serializers.ValidationError({"authorization": "Authorization header is missing."})
+        if not authorization.startswith("Bearer "):  # 验证格式
+            raise serializers.ValidationError({"authorization": "Invalid authorization header format. Must start with 'Bearer '."})
+        try:
+            user = UserProfile.objects.get(
+                Q(login_id=login_id) & Q(login_type=login_type)
+            )
+            getAccessToken = authorization.split(' ')[1]
+            user_token_content = UserTokens.objects.get(
+                Q(user_id=user) & Q(access_token=getAccessToken) & Q(is_active=True)
+            )
+
+            if user_token_content.expires_at < now():
+                err_data = {
+                    'user_id': user.user_id,
+                    "err_message": {f"access_token already Expired."}
+                }
+                raise ValidationError(err_data)
+            session = TempQrSession.objects.get(session_key=session_key, is_active=True)
+            session.is_active=False
+            session.user_id=user
+            session.save()
+            user_token_content.last_used_at=now()
+            user_token_content.save()
+            attrs['user_agent']=session.user_agent
+            attrs['ip_address']=session.ip_address
+            attrs['access_token']=getAccessToken
+            attrs['user_id']=user.user_id
+        except UserProfile.DoesNotExist:
+            raise serializers.ValidationError({f"login_id": f"The {login_type} doesn't exist."})
+        except UserTokens.DoesNotExist:
+            raise ValidationError({f"access_token is invalid"})
+
+        return attrs
 
 
 # UserAuthLogs Serializer

@@ -136,6 +136,9 @@ class GenerateQrUrlView(AccessAuth):
         return Response(result)
 class VerifyQrUrlView(AccessAuth):
     permission_classes = [AllowAny]  # 允许任何用户访问该视图
+    def get(self,request,session_key, *args, **kwargs):
+        result=self.veritySessionKey(session_key)
+        return Response(result)
 
     def post(self, request, *args, **kwargs):
         # csrf_token = request.META.get('HTTP_X_CSRFTOKEN')
@@ -143,8 +146,9 @@ class VerifyQrUrlView(AccessAuth):
         #     return Response({"error": "CSRF token missing or invalid"}, status=status.HTTP_403_FORBIDDEN)
 
         # 检查 registerStatus 的返回值
-        result = self.generQrStatus(request)
+        result = self.verityQrStatus(request)
         return Response(result)
+
 
 
 

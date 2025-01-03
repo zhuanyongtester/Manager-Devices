@@ -430,4 +430,69 @@ class VerifyParm(APIView):
         except UserProfile.DoesNotExist:
             raise ValidationError(f"The  {login_type} doesn't exist.")
 
+    def _verity_session_key(self,session_key):
+        try:
+            # 查找会话
+            qr_session = TempQrSession.objects.get(session_key=session_key)
 
+            # 检查会话是否有效
+            if qr_session.is_active and timezone.now() < qr_session.expires_at:
+                raise ValidationError({
+                    "status": "valid",
+                    "session_key": session_key,
+                    "expires_at": qr_session.expires_at,
+                })
+            else:
+                raise ValidationError({
+                    "status": "expired or inactive",
+                    "session_key": session_key,
+                })
+        except TempQrSession.DoesNotExist:
+            raise ValidationError({
+                "status": "invalid",
+                "message": "Session key not found."
+            })
+    def _verityQrStatus(self,request,session_key):
+        if not session_key:
+          raise ValidationError({
+                "error": "session_key is missing."
+            })
+
+            # 查找会话
+        try:
+            qr_session = TempQrSession.objects.get(session_key=session_key)
+        except TempQrSession.DoesNotExist:
+            raise ValidationError({
+                "error": "Session key not found."
+            })
+
+            # 检查会话是否过期
+        if timezone.now() > qr_session.expires_at:
+            qr_session.is_active = False  # 会话过期，标记为无效
+            qr_session.save()
+            raise ValidationError({
+                "status": "expired",
+                "message": "The QR session has expired."
+            })
+
+            # 会话有效，根据请求更新状态
+        action = request.data.get('action', '')
+        if action == 'approve':
+            qr_session.status = 'approved'
+            qr_session.save()
+            raise ValidationError({
+                "status": "approved",
+                "message": "QR session approved."
+            })
+        elif action == 'reject':
+            qr_session.status = 'rejected'
+            qr_session.save()
+            raise ValidationError({
+                "status": "rejected",
+                "message": "QR session rejected."
+            })
+        else:
+            raise ValidationError({
+                "status": "waiting",
+                "message": "QR session is still waiting for approval."
+            })
