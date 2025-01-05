@@ -8,12 +8,10 @@ from urllib import request
 from django.conf import settings
 from django.db.models import Q
 from django.forms import model_to_dict
-from django.utils.timezone import localtime
-import jwt
-from django.utils import timezone
-from datetime import timedelta
+
+from rest_framework.exceptions import ValidationError
+
 import apps.CustomManager.accountManger.comm as com
-from rest_framework import status, response
 from django.utils.timezone import now
 import datetime
 from apps.CustomManager.accountManger.VerifyParm import VerifyParm
@@ -289,8 +287,32 @@ class AccessAuth(VerifyParm):
             logger.log_user_action(user_id, self.action_token, False, ip_address, user_agent, str(serializer.errors))
         return self._getErrorRespones(self.code_failed, self.TOKEN_FAILED_MESSAGE, serializer.errors)
 
+    def modifyStatus(self, request):
+        user_id = request.data.get('user_id')
+
+        auth_header = request.headers.get('Authorization')
+        try:
+            updated_data = self._update_accountInfo(user_id, request.data, auth_header)
+            print(updated_data)
+            return self._getSuccessRespones(self.success,self.MODIFY_SUCCESS_MESSAGE,updated_data)  # 假设你有一个返回成功响应的方法
+        except ValidationError as e:
+            return self._getErrorRespones(self.code_f_id_other,self.MODIFY_FAILED_MESSAGE,str(e))  # 假设你有一个返回错误响应的方法
+
+    def foundOutStatus(self, request):
+        login_id = request.data.get('login_id')
+        login_type = request.data.get('login_type')
+        try:
+            updated_data = self._found_out_account(login_id,login_type, request.data)
+            print(updated_data)
+            return self._getSuccessRespones(self.success, self.MODIFY_SUCCESS_MESSAGE, updated_data)  # 假设你有一个返回成功响应的方法
+        except ValidationError as e:
+            return self._getErrorRespones(self.code_f_id_other, self.MODIFY_FAILED_MESSAGE, str(e))  # 假设你有一个返回错误响应的方法
+
+
+        pass
 
     def checkAccessToken(self, user_id, user_agent, ip_address):
+        acountEvent=AccountEvent()
         try:
             # 查找匹配的用户会话
             user_session = UserSessions.objects.filter(
@@ -309,7 +331,7 @@ class AccessAuth(VerifyParm):
             # 遍历用户的令牌
             for user_token in user_tokens:
                 # 生成会话密钥进行比较
-                token_session_key = AccountEvent.generate_session_key(user_id, user_token, user_agent, ip_address)
+                token_session_key = acountEvent.generate_session_key(user_id, user_token, user_agent, ip_address)
 
                 # 检查会话密钥是否匹配
                 if user_session.session_key == token_session_key:
@@ -326,5 +348,24 @@ class AccessAuth(VerifyParm):
         except Exception as e:
             # 记录异常（如果需要）
             return False  # 出现异常，默认需要重新登录
+
+    def generQrStatus(self, request):
+        user_agent, ip_address = self.getUserAgent(request)
+        secret_key=settings.SECRET_KEY
+        try:
+            session_key, access_token, expiration_time = self.generate_temp_token_and_session(user_agent, ip_address,
+                                                                                              secret_key)
+            result = {
+                "session_key": session_key,
+                "access_token": access_token,
+                "expiration_time": expiration_time
+            }
+            return self._getSuccessRespones(self.success,self.GEN_SUCCESS_MESSAGE,result)
+        except Exception as e:
+            return self._getErrorRespones(self.code_failed,self.GEN_FAILED_MESSAGE,str(e))
+
+    def verityQrStatus(self, request):
+        pass
+
 
 

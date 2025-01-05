@@ -161,6 +161,26 @@ class UserTokens(models.Model):
         verbose_name_plural = "用户令牌"
 
 
+class TempQrSession(models.Model):
+    session_key = models.CharField(max_length=255, unique=True, verbose_name="会话密钥")
+    access_token = models.CharField(max_length=1024, verbose_name="临时访问令牌")
+    expires_at = models.DateTimeField(verbose_name="令牌过期时间")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    is_active = models.BooleanField(default=True, verbose_name="是否有效")
+    user_id = models.ForeignKey(UserProfile, null=True, blank=True, on_delete=models.SET_NULL,
+                                verbose_name="用户标识符")
+    user_agent = models.CharField(max_length=255, verbose_name="用户设备信息（User-Agent）", null=True, blank=True)
+    ip_address = models.CharField(max_length=45, verbose_name="用户登录时的 IP 地址", null=True,
+                                  blank=True)  # 支持 IPv4 和 IPv6
+
+    def __str__(self):
+        return f"session_key: {self.session_key}, is_active: {self.is_active}, device: {self.user_agent}, ip: {self.ip_address}"
+
+    class Meta:
+        db_table = 't_temp_sessions'
+        verbose_name = "临时会话"
+        verbose_name_plural = "临时会话"
+
 class UserSessions(models.Model):
     session_id = models.AutoField(primary_key=True, verbose_name="会话唯一标识符")
     user_id = models.ForeignKey(UserProfile, on_delete=models.CASCADE, verbose_name="用户唯一标识符")
@@ -214,3 +234,8 @@ class UserAuthLogs(models.Model):
         indexes = [
             models.Index(fields=['user_id', 'timestamp'], name='user_auth_logs_combined_idx'),  # 修改索引名称
         ]
+
+
+class ChatModel(models.Model):
+    room_number = models.CharField(max_length=127)
+    message = models.TextField()

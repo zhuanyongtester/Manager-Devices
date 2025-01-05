@@ -112,6 +112,56 @@ class UserProfileSerializer(serializers.Serializer):  # 使用 Serializer，而�
     def genrate_new_password(self,password):
         hashed_password = hashlib.md5(password.encode('utf-8')).hexdigest()
         return hashed_password
+    def update(self, instance, validated_data):
+        instance.name = validated_data.get("name", instance.name)
+        instance.age = validated_data.get("age", instance.age)
+        instance.birthday = validated_data.get("birthday", instance.birthday)
+        instance.location = validated_data.get("location",instance.location)  # 默认当前时间
+        instance.profession = validated_data.get("profession", instance.profession)
+        instance.language = validated_data.get("language", instance.language)
+        instance.login_id = validated_data.get("login_id", instance.login_id)
+        instance.login_type = validated_data.get("login_type", instance.login_type)
+        instance.updated_at = validated_data.get("updated_at", now())
+        # 保存更新后的实例
+        instance.save()
+        return instance
+class FoundOutSerializer(serializers.Serializer):
+    password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
+    login_id = serializers.CharField(max_length=255)
+    login_type = serializers.ChoiceField(choices=['email', 'phone'])
+    def validate_login_id(self, value):
+        login_type = self.initial_data.get('login_type')  # 获取当前提交的 login_type
+        if login_type == 'email':
+            # 如果是邮箱，检查格式是否正确
+            if not re.match(r"[^@]+@[^@]+\.[^@]+", value):
+                raise ValidationError("Invalid email address.")
+        elif login_type == 'phone':
+            # 如果是手机号，检查是否为数字
+            if not value.isdigit():
+                raise ValidationError("Login ID must be a valid phone number (digits only).")
+        else:
+            raise ValidationError("Invalid login type.")
+        return value
+
+    def validate(self, data):
+        # 全局验证：确保 login_type 与 login_id 配对
+        login_type = data.get('login_type')
+        login_id = data.get('login_id')
+        if login_type == 'email' and '@' not in login_id:
+            raise ValidationError({"login_id": "If login type is email, a valid email must be provided."})
+
+        if login_type == 'phone' and not login_id.isdigit():
+            raise ValidationError({"login_id": "If login type is phone, login_id must be numeric."})
+        try:
+            user = UserProfile.objects.get(
+                Q(login_id=login_id) & Q(login_type=login_type)
+            )
+
+
+        except UserProfile.DoesNotExist:
+            raise ValidationError({f"login_id": f"The {login_type} doesn't exist."})
+
+
 class UserLoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
     login_id = serializers.CharField(max_length=255)

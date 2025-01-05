@@ -19,10 +19,12 @@ from django.views.static import serve
 from django.urls import path,re_path,include
 from django.conf import settings
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    # path('admin/', admin.site.urls),
     re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
     re_path('^', include('apps.UserLogin.urls', namespace="UserLogin")),
     re_path('^auth/', include('apps.DevicesManager.urls', namespace="DevicesManager")),
     re_path('^api/', include('apps.CustomManager.urls', namespace="CustomManager")),
     re_path('^store/', include('apps.StoresManager.urls', namespace="StoresManager")),
+    # re_path(r'^ws/', include('apps.CustomManager.urls.websocket_urlpatterns')),
+
 ]

@@ -2,21 +2,26 @@ import hashlib
 import json
 import re
 import secrets
+import uuid
 
 from cryptography.fernet import Fernet
 from django.forms import model_to_dict
+from django.http import JsonResponse
 from django.utils import timezone
 from datetime import timedelta, datetime
 import jwt
 from django.db.models import Q
 from django.utils.timezone import now
 from rest_framework import status, response
+from rest_framework.exceptions import ValidationError
 
 from rest_framework.views import APIView
 import apps.CustomManager.accountManger.comm as com
 from HuaweiDevicesManager import settings
 from apps.CustomManager.form import UserRegistrationForm
-from apps.CustomManager.models import UserProfile, UserTokens
+from apps.CustomManager.models import UserProfile, UserTokens, TempQrSession
+from apps.CustomManager.serializers import UserProfileSerializer
+from apps.base.BaseParm import BaseParm
 
 
 class VerifyParm(APIView):
@@ -43,6 +48,10 @@ class VerifyParm(APIView):
         self.REFRESH_FAILED_MESSAGE="Refresh Token Failed"
         self.TOKEN_SUCCESS_MESSAGE="Token Login Success"
         self.TOKEN_FAILED_MESSAGE="Token Login Failed"
+        self.MODIFY_SUCCESS_MESSAGE='Modify Success'
+        self.MODIFY_FAILED_MESSAGE = 'Modify Failed'
+        self.GEN_SUCCESS_MESSAGE = 'generate success'
+        self.GEN_FAILED_MESSAGE = 'generate failed'
         self.action_login='login'
         self.action_logout='logout'
         self.action_refresh='refresh'
@@ -188,6 +197,35 @@ class VerifyParm(APIView):
         access_token = jwt.encode(payload, secret_key, algorithm='HS256')
         return access_token, expiration_time
 
+    def generate_temp_token_and_session(self,user_agent,ip_address, secret_key):
+
+        # 创建唯一的 session_key
+        session_key = str(uuid.uuid4())
+        # 设置令牌的过期时间
+        expiration_time = timezone.now() + timedelta(minutes=15)
+
+        # 创建临时访问令牌（不含用户 ID，仅包含 session_key）
+        payload = {
+            'user_agent':user_agent,
+            'session_key': session_key,
+            'exp': expiration_time
+        }
+        access_token = jwt.encode(payload, secret_key, algorithm='HS256')
+        try:
+            # 保存临时会话到数据库，包括设备信息
+            temp_session = TempQrSession.objects.create(
+                session_key=session_key,
+                access_token=access_token,
+                expires_at=expiration_time,
+                user_agent=user_agent,
+                ip_address=ip_address,
+                is_active=True
+            )
+
+            return session_key, access_token, expiration_time
+        except Exception as e:
+            raise ValidationError(str(e))
+
     def generate_refresh_token(self,device_info=None):
 
         raw_token = secrets.token_urlsafe(64)
@@ -313,3 +351,83 @@ class VerifyParm(APIView):
             user_data=None
             user=None
         return user_data,user
+
+    def _update_accountInfo(self, user_id, update_data, authorization):
+        baseParm = BaseParm()  # 假设 BaseParm 是验证工具类
+        if not user_id :
+            raise ValidationError("user_id cannot be null")
+        try:
+
+            # 查找用户信息
+            user = UserProfile.objects.get(user_id=user_id)
+            baseParm.verity_access_token(user.user_id, authorization)
+            # 验证 access token 是否有效
+
+        except UserProfile.DoesNotExist:
+            # 如果用户不存在，抛出 ValidationError
+            raise ValidationError(f"The  {user_id} doesn't exist.")
+        except Exception as e:
+            # 捕获其他异常并返回详细错误信息
+            raise ValidationError(str(e))  # 这里使用 str() 以确保错误信息是一个字符串
+
+        # 用 Serializer 更新用户信息，partial=True 允许部分更新
+        serializer = UserProfileSerializer(user, data=update_data, partial=True)
+
+        if serializer.is_valid():
+            # 如果数据有效，保存并返回更新后的数据
+            updated_user = serializer.save()
+            getData=serializer.data
+            id_token,user=self.getNewId_token(getData['login_id'],getData['login_type'])
+            result={
+                "user_id":user.user_id,
+                "id_token":id_token,
+                "name":user.name
+            }
+            return result
+        else:
+            # 如果数据无效，抛出 ValidationError 并返回错误
+            raise ValidationError(serializer.errors)
+
+    def _found_out_account(self,login_id,login_type,update_data):
+        try:
+            if not login_id or not login_type:
+                raise ValidationError("login_id or login_type cannot be null")
+            if login_type == 'email' and '@' not in login_id:
+                raise ValidationError({"login_id": "If login type is email, a valid email must be provided."})
+
+            if login_type == 'phone' and not login_id.isdigit():
+                raise ValidationError({"login_id": "If login type is phone, login_id must be numeric."})
+            # 查找用户信息
+            user = UserProfile.objects.get(Q(login_id=login_id)&Q(login_type=login_type))
+            # 检查 update_data 是否只包含密码字段
+            password_fields = {'password'}
+            if set(update_data.keys()).issubset(password_fields):
+                # 只修改了密码
+                # 在此执行密码修改操作
+                user.set_password(update_data['password'])  # 使用 set_password 方法来更新密码
+                user.save()
+                return {
+                    "message": "Password updated successfully",
+                    "user_id": user.user_id,
+                    "id_token": self.getNewId_token(user.login_id, user.login_type)[0],  # 获取新 token
+                }
+
+            serializer = UserProfileSerializer(user, data=update_data, partial=True)
+
+            if serializer.is_valid():
+            # 如果数据有效，保存并返回更新后的数据
+                updated_user = serializer.save()
+            getData = serializer.data
+            print(getData)
+            id_token, user = self.getNewId_token(getData['login_id'], getData['login_type'])
+            result = {
+                "user_id": user.user_id,
+                "id_token": id_token,
+                "name": user.name
+            }
+            return result
+
+        except UserProfile.DoesNotExist:
+            raise ValidationError(f"The  {login_type} doesn't exist.")
+
+

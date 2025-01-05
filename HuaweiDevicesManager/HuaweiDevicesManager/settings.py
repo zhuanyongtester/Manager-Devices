@@ -12,9 +12,13 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 import os
+
+import django
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
+# os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'HuaweiDevicesManager.settings')
+# django.setup()
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
@@ -34,19 +38,38 @@ CSRF_COOKIE_SECURE = False  # 不使用 HTTPS 时允许
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'channels',  # 添加 Channels
+
     'apps.DevicesManager',
     'apps.UserLogin',
     'apps.CustomManager',
     'apps.StoresManager',
+    'rest_framework_simplejwt',
+
+
 
 ]
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6380)],
+        },
+    },
+}
 
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+}
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -58,6 +81,8 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'HuaweiDevicesManager.urls'
+
+
 
 TEMPLATES = [
     {
@@ -75,7 +100,9 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'HuaweiDevicesManager.wsgi.application'
+# WSGI_APPLICATION = 'HuaweiDevicesManager.wsgi.application'
+
+ASGI_APPLICATION = 'HuaweiDevicesManager.asgi.application'
 
 
 # Database
@@ -86,7 +113,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'db_custom_manager',
         'USER': 'root',
-        'PASSWORD': '454659',
+        'PASSWORD': 'Zwx249198',
         'HOST': '127.0.0.1',
         'PORT': 3306,
     }

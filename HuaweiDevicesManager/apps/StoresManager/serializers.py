@@ -3,19 +3,26 @@ from django.utils.timezone import now
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from .models import Store, StoreTag, Review, NearbyQuery
+from .models import Store, StoreTag, Review, NearbyQuery, StoreImage
 from ..CustomManager.models import UserProfile, UserTokens
 from ..base.BaseParm import BaseParm
 
-
+class StoreImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StoreImage
+        fields = ['store_id',
+            'image_url', 'image_type', 'created_at']
 class StoreSerializer(serializers.ModelSerializer):
+    store_image = StoreImageSerializer(many=True, read_only=True)  # 使用 related_name 'images'
+
     class Meta:
         model = Store
         fields = [
             'store_id',
             'store_name', 'district_code', 'address', 'phone_number',
                   'latitude', 'longitude',
-                  'category', 'average_rating', 'price_range', 'opening_hours']
+                  'category', 'average_rating', 'price_range', 'opening_hours',
+                  'store_image']
         read_only_fields = ['store_id']  # 这个字段不允许修改，Django会自动生成
 
     def validate_store_name(self, value):
@@ -66,7 +73,12 @@ class StoreSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(f"A store location already exists.")
 
         return data
-
+    def create(self, validated_data):
+        store_images_data = validated_data.pop('store_image', [])  # 提取关联的 store_image 数据
+        store = Store.objects.create(**validated_data)
+        for image_data in store_images_data:
+            StoreImage.objects.create(store=store, **image_data)
+        return store
 class StoresCreateSerializer(serializers.Serializer):
 
     create_store = serializers.CharField(
@@ -253,7 +265,8 @@ class StoreTagSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-
+        user = StoreTag.objects.create(**validated_data)
+        user.save()
         return user
 
 

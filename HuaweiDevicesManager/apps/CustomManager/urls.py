@@ -17,14 +17,19 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path,re_path
 
-from apps.CustomManager.views import UserRegisterView,UserLoginView,UserLogoutView,RefreshTokenView,\
-    AccessTokenView
-app_name = 'DevicesManager'
+from apps.CustomManager.views import UserRegisterView, UserLoginView, UserLogoutView, RefreshTokenView, \
+    AccessTokenView, AccountModifyView, FoundOutAccountView, GenerateQrUrlView
+
+app_name = 'CustomManager'
 urlpatterns = [
     re_path(r'^register', UserRegisterView.as_view(), name='user_register'),
     re_path(r'^login', UserLoginView.as_view(), name='user_login'),
     re_path(r'^logout', UserLogoutView.as_view(), name='user_logout'),
     re_path(r'^refresh_token', RefreshTokenView.as_view(), name='user_refresh_token'),
     re_path(r'^token', AccessTokenView.as_view(), name='user_access_token'),
+    re_path(r'^modify', AccountModifyView.as_view(), name='user_modify'),
+    re_path(r'^found', FoundOutAccountView.as_view(), name='user_fount_out'),
+    re_path(r'^gen', GenerateQrUrlView.as_view(), name='user_generate'),
 
 ]
+

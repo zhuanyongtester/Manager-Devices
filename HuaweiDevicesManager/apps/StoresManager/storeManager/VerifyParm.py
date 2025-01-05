@@ -1,3 +1,4 @@
+from MySQLdb import IntegrityError
 from django.db.models import Q
 from django.utils.timezone import now
 from rest_framework import status, response, serializers
@@ -6,7 +7,7 @@ from rest_framework.views import APIView
 from math import radians, sin, cos, sqrt, atan2
 
 from apps.CustomManager.models import UserProfile, UserTokens
-from apps.StoresManager.models import Store
+from apps.StoresManager.models import Store, StoreImage
 from apps.StoresManager.serializers import StoresCreateSerializer, StoreReviewCreateSerializer, NearbyQuerySerializer
 
 
@@ -165,3 +166,29 @@ class VerifyParm(APIView):
             raise ValidationError({f"login_id": f"The {login_type} doesn't exist."})
         except UserTokens.DoesNotExist:
             raise ValidationError({f"access_token is invalid."})
+
+    def _insertImage(self, data):
+        if not data:
+            print("data is null")
+            return
+        print("data----------")
+        print(data)
+        store_id = data.get("store_id")
+        store_image = data.get("store_image")  # 使用 get 方法，避免 KeyError
+
+        if not store_image:
+            print("No 'store_image' data provided. Skipping image creation.")
+            return
+
+        store = Store.objects.get(store_id=store_id)  # 获取一个店铺
+        try:
+            image = StoreImage.objects.create(
+                store=store,
+                image_url=store_image['image_url'],
+                image_type=store_image['image_type'],
+                created_at=now()
+            )
+            print("New image created:", image)
+        except IntegrityError:
+            print("The image already exists in the database.")
+

@@ -1,8 +1,9 @@
+from MySQLdb import IntegrityError
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import status, response
 
-from apps.StoresManager.models import Store
+from apps.StoresManager.models import Store, StoreImage
 from apps.StoresManager.serializers import StoreSerializer, ReviewStoreSerializer, StoreTagSerializer, \
     StoreReviewCreateSerializer
 from apps.StoresManager.storeManager.VerifyParm import VerifyParm
@@ -17,6 +18,7 @@ class BaseStore(VerifyParm):
 
         store_list = result.get('data', {}).get('store_list', [])  # 获取 store_list，防止键不存在的错误
         user_info = result.get('data', {}).get('user_info', None)  # 获取 user_info，若没有则为 None
+        user_id=user_info['user_id']
 
 
 
@@ -27,11 +29,8 @@ class BaseStore(VerifyParm):
             serializer = StoreSerializer(data=data)
             if serializer.is_valid():
                 serializer.save()  # Save valid data
-            #     success_data.append({
-            #     "store_id": serializer.data["store_id"],   # 返回 store_id
-            #     "store_name": serializer.data["store_name"],  # 返回 store_name
-            #     "average_rating": serializer.data.get("average_rating", None)  # 返回 average_rating
-            # })
+                self._insertImage(serializer.data)
+
             failed_data.append({
                 "store_name": data.get("store_name", None),  # 返回 store_name from input data
                 "address": data.get("address", None),  # 返回 store_id from input data
