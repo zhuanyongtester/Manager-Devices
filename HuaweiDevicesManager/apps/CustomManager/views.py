@@ -1,13 +1,15 @@
 import json
 
 from django.shortcuts import render
-
+import asyncio
+from websockets.server import serve
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from apps.CustomManager.accountManger.AccessAuthView import AccessAuth
 from apps.CustomManager.models import UserProfile
 from apps.CustomManager.serializers import UserProfileSerializer, UserTokensSerializer
+from apps.dwebsocket import require_websocket
 
 
 class UserRegisterView(AccessAuth):
@@ -52,7 +54,7 @@ class UserLoginView(AccessAuth):
         result = self.loginStatus(request)
         print(result['statusCode'])
         if result and result['statusCode']==201:
-            data=result['data']['data']
+            data=result['detailData']
             print(data)
 
             serializer = UserTokensSerializer(data=data)
@@ -126,7 +128,7 @@ class FoundOutAccountView(AccessAuth):
 class GenerateQrUrlView(AccessAuth):
     permission_classes = [AllowAny]  # 允许任何用户访问该视图
 
-    def post(self, request, *args, **kwargs):
+    def get(self, request, *args, **kwargs):
         # csrf_token = request.META.get('HTTP_X_CSRFTOKEN')
         # if not csrf_token or not self.validate_csrf_token(csrf_token):
         #     return Response({"error": "CSRF token missing or invalid"}, status=status.HTTP_403_FORBIDDEN)
@@ -136,6 +138,11 @@ class GenerateQrUrlView(AccessAuth):
         return Response(result)
 class VerifyQrUrlView(AccessAuth):
     permission_classes = [AllowAny]  # 允许任何用户访问该视图
+
+    def __init__(self, error_des=None, encryption_key=None):
+        super().__init__(error_des, encryption_key)
+        self.websocket = None
+
     def get(self,request,session_key, *args, **kwargs):
         result=self.veritySessionKey(session_key)
         return Response(result)
@@ -148,7 +155,6 @@ class VerifyQrUrlView(AccessAuth):
         # 检查 registerStatus 的返回值
         result = self.verityQrStatus(request)
         return Response(result)
-
 
 
 

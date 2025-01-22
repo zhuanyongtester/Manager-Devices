@@ -378,12 +378,17 @@ class accessTokenSerializer(serializers.Serializer):
 
         return attrs
 
-class accessScanQrTokenSerializer(serializers.Serializer):
+
+class AccessScanQrTokenSerializer(serializers.Serializer):
     login_id = serializers.CharField(required=True, allow_blank=False)
     login_type = serializers.ChoiceField(choices=['email', 'phone'], required=True)
-    session_key=serializers.CharField(max_length=100)
+    session_key = serializers.CharField(max_length=100)
+    status = serializers.ChoiceField(choices=[('approved', 'Approved'), ('rejected', 'Rejected')])  # 改为 ChoiceField
+
     user_id = serializers.IntegerField(read_only=True)
     access_token = serializers.CharField(read_only=True)  # 刷新令牌，最大长度为100，必填字段
+    user_agent = serializers.CharField(read_only=True)  # 设备信息
+    ip_address = serializers.CharField(read_only=True)  # 用户登录时的 IP 地址
 
     def validate_login_id(self, value):
         """根据 login_type 验证 login_id 的值。"""
@@ -393,13 +398,18 @@ class accessScanQrTokenSerializer(serializers.Serializer):
         if login_type == 'phone' and not value.isdigit():
             raise serializers.ValidationError("The login_id must be a valid phone number.")
         return value
-    def validate_session_key(self,value):
-        session_key = self.initial_data.get('session_key')  # 从请求数据中获取 login_type
+
+    def validate_session_key(self, value):
+        """验证 session_key 是否有效，并检查是否过期。"""
+        session_key = value  # 获取 session_key
+
+        # 检查 session_key 是否存在
         try:
             session = TempQrSession.objects.get(session_key=session_key, is_active=True)
         except TempQrSession.DoesNotExist:
             raise serializers.ValidationError({"session_key": "Invalid or expired session_key."})
-            # 检查 session_key 是否过期
+
+        # 检查 session_key 是否过期
         if session.expires_at < now():
             session.is_active = False  # 标记为无效
             session.save()
@@ -407,48 +417,79 @@ class accessScanQrTokenSerializer(serializers.Serializer):
 
         return value
 
-
-
-
     def validate(self, attrs):
-        """全局验证，确保 header 中有 Authorization。"""
+        """全局验证，确保 header 中有 Authorization，并验证 access_token 的有效性。"""
         authorization = self.context.get('authorization')  # 从 context 中获取 Authorization
         login_type = attrs.get('login_type')
         login_id = attrs.get('login_id')
         session_key = attrs.get('session_key')
+        status = attrs.get('status')
+
+        # 验证是否包含 Authorization 头
         if not authorization:
             raise serializers.ValidationError({"authorization": "Authorization header is missing."})
+
+        # 验证 Authorization 格式
         if not authorization.startswith("Bearer "):  # 验证格式
-            raise serializers.ValidationError({"authorization": "Invalid authorization header format. Must start with 'Bearer '."})
+            raise serializers.ValidationError(
+                {"authorization": "Invalid authorization header format. Must start with 'Bearer '."})
+
         try:
+            # 获取用户
             user = UserProfile.objects.get(
                 Q(login_id=login_id) & Q(login_type=login_type)
             )
-            getAccessToken = authorization.split(' ')[1]
+
+            # 提取 token
+            get_access_token = authorization.split(' ')[1]
+
+            # 查找对应的 token
             user_token_content = UserTokens.objects.get(
-                Q(user_id=user) & Q(access_token=getAccessToken) & Q(is_active=True)
+                Q(user_id=user) & Q(access_token=get_access_token) & Q(is_active=True)
             )
 
+            # 检查 access_token 是否过期
             if user_token_content.expires_at < now():
                 err_data = {
                     'user_id': user.user_id,
-                    "err_message": {f"access_token already Expired."}
+                    "err_message": "access_token already expired."
                 }
                 raise ValidationError(err_data)
+
+            # 检查 session_key 是否存在并且是否过期
             session = TempQrSession.objects.get(session_key=session_key, is_active=True)
-            session.is_active=False
-            session.user_id=user
+            session.is_active = False  # 标记 session 为无效
+            session.user_id = user
             session.save()
-            user_token_content.last_used_at=now()
+
+            # 根据会话状态处理
+            if status == 'approved':
+                session.status = 'approved'
+                session.save()
+                # 这里可以处理一些成功后的操作，例如设备登录成功通知等
+            elif status == 'rejected':
+                session.status = 'rejected'
+                session.save()
+                raise serializers.ValidationError("user had rejected login the devices")
+                # 这里可以处理拒绝的操作，例如关闭设备的登录界面等
+
+            # 更新 token 最后使用时间
+            user_token_content.last_used_at = datetime.now()
             user_token_content.save()
-            attrs['user_agent']=session.user_agent
-            attrs['ip_address']=session.ip_address
-            attrs['access_token']=getAccessToken
-            attrs['user_id']=user.user_id
+
+            # 返回相关信息
+            attrs['user_agent'] = session.user_agent
+            attrs['ip_address'] = session.ip_address
+            attrs['access_token'] = get_access_token
+            attrs['user_id'] = user.user_id
+            attrs['session_status'] = session.status  # 会话状态返回到 attrs
+
         except UserProfile.DoesNotExist:
             raise serializers.ValidationError({f"login_id": f"The {login_type} doesn't exist."})
         except UserTokens.DoesNotExist:
-            raise ValidationError({f"access_token is invalid"})
+            raise ValidationError({"access_token": "The provided access token is invalid or expired."})
+        except TempQrSession.DoesNotExist:
+            raise ValidationError({"session_key": "Session key is invalid or expired."})
 
         return attrs
 

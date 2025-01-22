@@ -35,5 +35,5 @@ urlpatterns = [
 ]
 websocket_urlpatterns = [
     # 这里的 URL 会匹配如：/device/<device_id>/ 的 WebSocket 请求
-    re_path(r'^device/(?P<session_id>[a-f0-9\-]+)/$', DeviceConsumer.as_asgi()),  # 确保路由正确
+    re_path(r'^device/connect', DeviceConsumer.as_asgi()),  # 确保路由正确
 ]
