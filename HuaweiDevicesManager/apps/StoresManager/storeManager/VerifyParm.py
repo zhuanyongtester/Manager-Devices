@@ -29,7 +29,7 @@ class VerifyParm(APIView):
                 "statusCode": self.FAILED_400,
                 "resultCode": result_code,
                 "message": message,
-                "errors": err_data or {}
+                "data": err_data or {}
             }
             return response_data
     def _getSuccessRespones(self,result_code,message,success_data):

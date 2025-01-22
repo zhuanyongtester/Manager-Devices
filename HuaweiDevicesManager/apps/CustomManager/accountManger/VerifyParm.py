@@ -62,7 +62,7 @@ class VerifyParm(APIView):
             "statusCode": self.code_failed,
             "resultCode": result_code,
             "message": message,
-            "errors": err_data or {}
+            "detailData": err_data or {}
         }
         return response_data
 
@@ -71,7 +71,7 @@ class VerifyParm(APIView):
             "statusCode": self.SUCCESS_201,
             "resultCode": result_code,
             "message": message,
-            "data": success_data or {}
+            "detailData": success_data or {}
         }
         return response_data
 
@@ -202,7 +202,7 @@ class VerifyParm(APIView):
         # 创建唯一的 session_key
         session_key = str(uuid.uuid4())
         # 设置令牌的过期时间
-        expiration_time = timezone.now() + timedelta(minutes=15)
+        expiration_time = timezone.now() + timedelta(seconds=60)
 
         # 创建临时访问令牌（不含用户 ID，仅包含 session_key）
         payload = {

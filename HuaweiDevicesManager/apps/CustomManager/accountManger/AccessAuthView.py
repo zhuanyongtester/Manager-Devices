@@ -1,25 +1,17 @@
-import json
-import re
-import secrets
+import datetime
 from datetime import datetime
-from idlelib.textview import ViewWindow
-from urllib import request
 
 from django.conf import settings
 from django.db.models import Q
 from django.forms import model_to_dict
-
+from django.utils.timezone import now
 from rest_framework.exceptions import ValidationError
 
-import apps.CustomManager.accountManger.comm as com
-from django.utils.timezone import now
-import datetime
-from apps.CustomManager.accountManger.VerifyParm import VerifyParm
-from apps.CustomManager.form import UserRegistrationForm
-from apps.CustomManager.models import UserProfile, UserTokens, UserSessions, TempQrSession
 from apps.CustomManager.accountManger.AccountEventView import AccountEvent
+from apps.CustomManager.accountManger.VerifyParm import VerifyParm
+from apps.CustomManager.models import UserProfile, UserTokens, UserSessions
 from apps.CustomManager.serializers import UserProfileSerializer, UserLoginSerializer, UserLogoutSerializer, \
-    refreshTokenSerializer, accessTokenSerializer, accessScanQrTokenSerializer
+    refreshTokenSerializer, accessTokenSerializer, AccessScanQrTokenSerializer
 
 
 class AccessAuth(VerifyParm):
@@ -86,11 +78,7 @@ class AccessAuth(VerifyParm):
 
                 }
 
-                result = {
-                    'result_code': self.success,
-                    'message': f"{login_id} Login success",
-                    'data': data
-                }
+
                 devices_data = {
                     "user_agent": user_agent,
                     "ip_address": ip_address
@@ -98,7 +86,7 @@ class AccessAuth(VerifyParm):
                 }
                 logger.log_user_action(user_id, self.action_login, True, ip_address, user_agent, data)
                 logger.create_activity(user_id, self.action_login, devices_data)
-                return self._getSuccessRespones(self.success,self.LOGIN_SUCCESS_MESSAGE,result)
+                return self._getSuccessRespones(self.success,self.LOGIN_SUCCESS_MESSAGE,data)
             except Exception as e:
                 err_data={f"login_id": f"The {str(e)} doesn't exist."}
                 return self._getErrorRespones(self.code_f_id_exist,self.LOGIN_FAILED_MESSAGE,err_data)
@@ -110,6 +98,9 @@ class AccessAuth(VerifyParm):
         logger = AccountEvent()
 
         authorization = request.headers.get('Authorization', None)
+        getUser_agent = request.headers.get('Authorization', None)
+
+        print(getUser_agent)
         user_agent, ip_address = self.getUserAgent(request)
 
         # 初始化序列化器，并将 authorization 传递到 context 中
@@ -358,7 +349,7 @@ class AccessAuth(VerifyParm):
             result = {
                 "session_key": session_key,
                 "access_token": access_token,
-                "expiration_time": expiration_time
+                "expiration_time": 30000
             }
             return self._getSuccessRespones(self.success,self.GEN_SUCCESS_MESSAGE,result)
         except Exception as e:
@@ -373,10 +364,11 @@ class AccessAuth(VerifyParm):
 
         # user_agent, ip_address = self.getUserAgent(request)
 
-        serializer = accessScanQrTokenSerializer(data=request.data,
+        serializer = AccessScanQrTokenSerializer(data=request.data,
                                            context={'authorization': auth_header})
         print("Qr token start------------")
         if serializer.is_valid():
+            print(serializer.data)
             user_id = serializer.data['user_id']
             access_token = serializer.data['access_token']
             ip_address = serializer.data['ip_address']
