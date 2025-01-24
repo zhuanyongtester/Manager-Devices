@@ -17,10 +17,11 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path,re_path
 
+from apps.CustomManager.consumers import DeviceConsumer
 from apps.CustomManager.views import UserRegisterView, UserLoginView, UserLogoutView, RefreshTokenView, \
-    AccessTokenView, AccountModifyView, FoundOutAccountView, GenerateQrUrlView
-
-app_name = 'CustomManager'
+    AccessTokenView, AccountModifyView, FoundOutAccountView, GenerateQrUrlView, VerifyQrUrlView
+from . import views
+app_name = 'DevicesManager'
 urlpatterns = [
     re_path(r'^register', UserRegisterView.as_view(), name='user_register'),
     re_path(r'^login', UserLoginView.as_view(), name='user_login'),
@@ -30,6 +31,7 @@ urlpatterns = [
     re_path(r'^modify', AccountModifyView.as_view(), name='user_modify'),
     re_path(r'^found', FoundOutAccountView.as_view(), name='user_fount_out'),
     re_path(r'^gen', GenerateQrUrlView.as_view(), name='user_generate'),
+    re_path(r'^verity', VerifyQrUrlView.as_view(), name='user_verity'),
+
 
 ]
-

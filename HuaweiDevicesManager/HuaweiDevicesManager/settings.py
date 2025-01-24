@@ -13,12 +13,10 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 from pathlib import Path
 import os
 
-import django
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-# os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'HuaweiDevicesManager.settings')
-# django.setup()
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
@@ -29,7 +27,7 @@ SECRET_KEY = 'django-insecure-cx(bsig6@d$-cunmzu9f0dbm0#20kfoe=pp4rk)*u9y5hj5na%
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["10.0.2.2",'127.0.0.1']
 CSRF_TRUSTED_ORIGINS = ['http://localhost:8000']
 CSRF_COOKIE_NAME = 'csrftoken'
 CSRF_USE_SESSIONS = False
@@ -45,44 +43,26 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'channels',  # 添加 Channels
-
     'apps.DevicesManager',
     'apps.UserLogin',
     'apps.CustomManager',
     'apps.StoresManager',
-    'rest_framework_simplejwt',
-
+    'channels',
 
 
 ]
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [("127.0.0.1", 6380)],
-        },
-    },
-}
 
-REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
-    ),
-}
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    # 'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    # 'django.middleware.csrf.CsrfViewMiddleware',    'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware'
 ]
 
 ROOT_URLCONF = 'HuaweiDevicesManager.urls'
-
-
 
 TEMPLATES = [
     {
@@ -102,8 +82,16 @@ TEMPLATES = [
 
 # WSGI_APPLICATION = 'HuaweiDevicesManager.wsgi.application'
 
-ASGI_APPLICATION = 'HuaweiDevicesManager.asgi.application'
+ASGI_APPLICATION='HuaweiDevicesManager.asgi.application'
 
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6380)],  # Redis 地址
+        },
+    },
+}
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
@@ -167,3 +155,10 @@ JAVA_PATH=os.path.join(BASE_DIR, 'apps').replace("\\", "/")
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # AUTH_USER_MODEL = 'CustomManager.CustomUser'  # 确认这里的模型是你的自定义用户模型
+# 为所有的URL提供websocket，如果只是单独的视图需要可以不选
+MIDDLEWARE_CLASSES=['dwebsocket.middleware.WebSocketMiddleware']
+
+# 可以允许每一个单独的视图实用websockets
+WEBSOCKET_ACCEPT_ALL = True
+
+WEBSOCKET_FACTORY_CLASS = 'dwebsocket.backends.uwsgi.factory.uWsgiWebSocketFactory'
